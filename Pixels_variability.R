@@ -1,6 +1,7 @@
 ########## SINGLE SPECIES CODE ##########
           #####################
   
+  library(tidyverse)
   library(scico)
   library(raster)
   library(rasterVis)
