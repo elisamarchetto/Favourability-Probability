@@ -241,7 +241,7 @@ Stratified.SDM <- function(Predictors=NULL, alpha= -0.05) {
       
       print(Outputs08)
       
-    }else{  
+     
     }
     
   }
@@ -387,7 +387,7 @@ for(i in 1:5) {
     
     print( Rsdm08RF)
     
-  }else{  
+   
   }
   
 }
@@ -629,7 +629,7 @@ Stratified.SDM <- function(Predictors=NULL, alpha= -0.05) {
       Outputs08=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
         print(Outputs08)
         
-      }else{  
+      
       }
       
     }
@@ -766,7 +766,7 @@ for(i in 1:5) {
     
     print( Rsdm08GAM)
     
-  }else{  
+    
   }
   
 }
@@ -976,7 +976,7 @@ Stratified.SDM <- function(Predictors=NULL, alpha= -0.05) {
       Outputs08=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
         print(Outputs08)
         
-      }else{  
+      
       }
       
     }
@@ -1118,7 +1118,7 @@ for(i in 1:5) {
     
     print( Rsdm08GBM)
     
-  }else{  
+    
   }
   
 }
@@ -1358,7 +1358,7 @@ Stratified.SDM <- function(Predictors=NULL, alpha= -0.05) {
       Outputs08=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
         print(Outputs08)
         
-      }else{  
+      
       }
       
     }
