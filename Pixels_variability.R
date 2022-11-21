@@ -231,7 +231,7 @@ df.Tot <- rbind(df.diff_probfavGLM.R, df.diff_probfavGLM.S, df.diff_probfavRF.R,
   geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
   geom_hline(aes(yintercept = 0), color = "gray70", size = 0.6) +
   scale_fill_manual( values=c("#D55E00", "#0072B2"))+
-  labs(x="Model", y="Values", fill="Sampling method")+
+  labs(x="Model", y="CV difference", fill="Sampling method")+
   scale_x_discrete(limits=c("GLM A","GLM B", "GAM A", "GAM B", "RF A", "RF B","BRT A","BRT B"))+
   theme_light()+
   theme(legend.background=element_blank(),
