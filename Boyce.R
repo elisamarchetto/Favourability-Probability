@@ -1988,3 +1988,115 @@ boyceGBMS_tot <- rbind(boyceGBMS_Prob_boxplot, boyceGBMS_Fav_boxplot)
 boyceGBMR_tot$sampling <- "Random sampling"
 boyceGBMS_tot$sampling <- "Stratified sampling"
 rb.boyceGBM <- rbind(boyceGBMR_tot, boyceGBMS_tot)  
+ 
+  gam <- ggplot(rb.boyceGAM, aes(prevalence, values, fill = pred))+
+  geom_half_violin(alpha = 0.6, side = "l")+
+  geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
+  facet_wrap(~ sampling, nrow = 1) +
+  scale_fill_manual(values=c("#800080", "#E69F00"))+
+  labs(x = "Sample prevalence", y="Continuous Boyce Index",fill = "Prediction", title="GAM")+
+  scale_x_discrete(limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
+  theme_light() +
+  theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
+        legend.position = "bottom",  
+        plot.title = element_text(size=15,face = 'bold'),
+        legend.title=element_text(size=12,face = 'bold'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.title.x = element_text(size=12,face = 'bold'),
+        axis.text.x = element_text(size = 10, face = 'bold'),
+        axis.title.y = element_text(size=12,face = 'bold'),
+        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=12), 
+        strip.text = element_text(size=12),
+        legend.text = element_text(size=12,angle = 0), 
+        legend.key.size = unit(.7, 'cm'))    
+
+  glm <- ggplot(rb.boyceGLM, aes(prevalence, values, fill = pred))+
+  geom_half_violin(alpha = 0.6, side = "l")+
+  geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
+  facet_wrap(~ sampling, nrow = 1) +
+  scale_fill_manual(values=c("#800080", "#E69F00"))+
+  labs(x = "Sample prevalence", y="Continuous Boyce Index", fill = "Prediction", title="GLM")+
+  scale_x_discrete(limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
+  theme_light() +
+  theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
+        legend.position = "bottom",  
+        plot.title = element_text(size=15,face = 'bold'),
+        legend.title=element_text(size=12,face = 'bold'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.title.x = element_text(size=12,face = 'bold'),
+        axis.text.x = element_text(size = 10, face = 'bold'),
+        axis.title.y = element_text(size=12,face = 'bold'),
+        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=12), 
+        strip.text = element_text(size=12),
+        legend.text = element_text(size=12,angle = 0), 
+        legend.key.size = unit(.7, 'cm'))    
+
+  
+ rf <- ggplot(rb.boyceRF, aes(prevalence, values, fill = pred))+
+  geom_half_violin(alpha = 0.6, side = "l")+
+  geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
+  facet_wrap(~ sampling, nrow = 1) +
+  scale_fill_manual(values=c("#800080", "#E69F00"))+
+  labs(x = "Sample prevalence", y="Continuous Boyce Index",fill = "Prediction", title="RF")+
+  scale_x_discrete(limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
+  theme_light() +
+  theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
+        legend.position = "bottom",  
+        plot.title = element_text(size=15,face = 'bold'),
+        legend.title=element_text(size=12,face = 'bold'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.title.x = element_text(size=12,face = 'bold'),
+        axis.text.x = element_text(size = 10, face = 'bold'),
+        axis.title.y = element_text(size=12,face = 'bold'),
+        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=12), 
+        strip.text = element_text(size=12),
+        legend.text = element_text(size=12,angle = 0), 
+        legend.key.size = unit(.7, 'cm'))    
+ 
+  
+  gbm <- ggplot(rb.boyceGBM, aes(prevalence, values, fill = pred))+
+  geom_half_violin(alpha = 0.6, side = "l")+
+  geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
+  facet_wrap(~ sampling, nrow = 1) +
+  scale_fill_manual(values=c("#800080", "#E69F00"))+
+  labs(x = "Sample prevalence", y="Continuous Boyce Index",fill = "Prediction", title="BRT")+
+  scale_x_discrete(limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
+  theme_light() +
+  theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
+        legend.position = "bottom",  
+        plot.title = element_text(size=15,face = 'bold'),
+        legend.title=element_text(size=12,face = 'bold'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.title.x = element_text(size=12,face = 'bold'),
+        axis.text.x = element_text(size = 10, face = 'bold'),
+        axis.title.y = element_text(size=12,face = 'bold'),
+        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=12), 
+        strip.text = element_text(size=12),
+        legend.text = element_text(size=12,angle = 0), 
+        legend.key.size = unit(.7, 'cm'))    
+
+
+  f <- glm + gam + rf + gbm + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  
+  ggsave(plot = f,
+       filename = "f.jpeg",
+       width = 18,
+       height = 10,
+       dpi = 600) 
+  
