@@ -55,7 +55,7 @@ Random.SDM <- function(alpha=-0.05, value=NULL, Predictors=NULL, SamplePoints=NU
   }
 
 
-  listV <- list(0.2, 0.4, 0.5, 0.6, 0.8)
+  listV <- list(0.167, 0.286, 0.333, 0.375, 0.444)
 
 
   for(i in 1:5) {
@@ -93,6 +93,7 @@ Random.SDM <- function(alpha=-0.05, value=NULL, Predictors=NULL, SamplePoints=NU
   }
   
   }
+
 
 
 
@@ -293,7 +294,7 @@ Random.SDM <- function(alpha=-0.05, value=NULL, Predictors=NULL, SamplePoints=NU
 }
 
 
-listV <- list(0.2, 0.4, 0.5, 0.6, 0.8)
+listV <- list(0.167, 0.286, 0.333, 0.375, 0.444)
 
 
 for(i in 1:5) {
@@ -331,8 +332,6 @@ for(i in 1:5) {
   }
   
 }
-
-    
 
     ####################################
     ####################################
@@ -567,7 +566,7 @@ SsdmRF <- Stratified.SDM(envData)
 
       
 ########### GAM #########
-      Random.SDM <- function(alpha=-0.05, value=NULL, Predictors=NULL, SamplePoints=NULL) {
+     Random.SDM <- function(alpha=-0.05, value=NULL, Predictors=NULL, SamplePoints=NULL) {
   
   set.seed(999)
   myRandNum=sample(1:19,size=5, replace = FALSE)
@@ -614,7 +613,7 @@ SsdmRF <- Stratified.SDM(envData)
 }
 
 
-listV <- list(0.2, 0.4, 0.5, 0.6, 0.8)
+listV <- list(0.167, 0.286, 0.333, 0.375, 0.444)
 
 
 for(i in 1:5) {
@@ -652,8 +651,7 @@ for(i in 1:5) {
   }
   
 }
-
-
+  
 
 ####################################
 ####################################
@@ -884,7 +882,7 @@ SsdmGAM <- Stratified.SDM(envData)
   
   ############### GBM ###############
   
-    Random.SDM <- function(alpha=-0.05, value=NULL, Predictors=NULL, SamplePoints=NULL) {
+  Random.SDM <- function(alpha=-0.05, value=NULL, Predictors=NULL, SamplePoints=NULL) {
   
   set.seed(999)
   myRandNum=sample(1:19,size=5, replace = FALSE)
@@ -937,7 +935,7 @@ SsdmGAM <- Stratified.SDM(envData)
 }
 
 
-listV <- list(0.2, 0.4, 0.5, 0.6, 0.8)
+listV <- list(0.167, 0.286, 0.333, 0.375, 0.444)
 
 
 for(i in 1:5) {
