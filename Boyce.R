@@ -1,1450 +1,1642 @@
-list.of.packages <- c("raster","tidyverse","sp","sf","virtualspecies","ggplot2","rgdal","fuzzySim","rasterVis","viridis","RStoolbox","rnaturalearth","caret")
-new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages)
-lapply(list.of.packages, library, character.only = TRUE)
-
-
-Worldclim<-raster::getData('worldclim', var='bio', res=10) 
-
-Europe <- ne_countries(scale="medium", type="map_units", returnclass="sf", continent="Europe")
-Europe <- Europe %>%
-  dplyr::select(geometry,name_long)  %>%    
-  filter(name_long!='Russian Federation')
-envData<-crop(Worldclim, Europe)
-envData <- mask(envData, Europe)
-
-
-Random.SDM <- function(alpha=-0.05, value=NULL, Predictors=NULL, SamplePoints=NULL) {
-  
-  set.seed(999)
-  myRandNum=replicate(50, sample(1:19,size=5, replace = FALSE), simplify = FALSE)
-  Outputs.l <- list()
-  
-  
-  for (i in 1:length(myRandNum)) {
-    
-  set.seed(999)    
-  random.sp <- virtualspecies::generateRandomSp(Predictors[[myRandNum[[i]]]], convert.to.PA = FALSE, species.type = "additive", realistic.sp = TRUE, plot = FALSE)
-    
-  set.seed(999)
-  new.pres<-convertToPA(random.sp, beta="random", alpha = alpha, plot = FALSE, species.prevalence = 0.2) 
-  
-  
-  presence.points <- sampleOccurrences(new.pres, n = SamplePoints, type = "presence-absence", sample.prevalence = value, detection.probability = 1, correct.by.suitability = FALSE, plot = FALSE)  
-  
-  PresAbs=presence.points$sample.points[, c( "x", "y", "Observed")]
-  coordinates(PresAbs)<-~x+y 
-  crs(PresAbs)<-crs(Predictors) 
-  values <- raster::extract(Predictors[[myRandNum[[i]]]], PresAbs, df=T)
-  values <- values[, -1]
-  modSpecies<- data.frame(pres = PresAbs@data[,1], x = PresAbs$x, y = PresAbs$y, values[1:ncol(values)])
-  
-  ## newdata for prediction
-  
-  preds <- Predictors[[myRandNum[[i]]]] 
-  
-  ## Favourability and Probability
-  
-  Model<-multGLM(modSpecies, sp.cols = 1, var.cols=4:ncol(modSpecies), family = "binomial", step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, P.prediction = TRUE, Favourability = TRUE) 
-  Pred<- getPreds(preds, models=Model$models, id.col = NULL, Y = FALSE, P = TRUE, Favourability = FALSE)
-  crs(Pred) <- crs(Predictors)
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(value + (x)/(1-x)))  
-  
-  Outputs=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"=modSpecies)
-  Outputs.l[[i]] <- Outputs 
-}
-
-return(Outputs.l)
-
-}
-
-listV <- list(0.2, 0.4, 0.5, 0.6, 0.8)
-
-
-for(i in 1:5) {
-  if(i==1){
-    
-    Rsdm02GLM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm02GLM)
-    
-  }else if(i==2){
-    
-    Rsdm04GLM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm04GLM)
-    
-  }else if(i==3){
-    
-    
-    Rsdm05GLM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm05GLM)
-    
-  }else if(i==4){
-    
-    
-    Rsdm06GLM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm06GLM)
-    
-  }else if(i==5){
-    
-    
-    Rsdm08GLM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print( Rsdm08GLM)
-    
-  }
-  
-}
-########
-########
-
-Stratified.SDM <- function(Predictors=NULL, alpha= -0.05) {
-  
-  set.seed(999)
-  myRandNum=replicate(50, sample(1:19,size=5, replace = FALSE), simplify = FALSE)
-  
-  Outputs.l <- list()
-  
-  #widespread species, at the moment
-  for (i in 1:length(myRandNum)) {
-  
-  set.seed(999)    
-  random.sp <- virtualspecies::generateRandomSp(Predictors[[myRandNum[[i]]]], convert.to.PA = FALSE, species.type = "additive", realistic.sp = TRUE, plot = FALSE)
-  
-  set.seed(999)
-  new.pres<-convertToPA(random.sp, beta="random", alpha = alpha, plot = FALSE, species.prevalence = 0.2) 
-  
-  #stratified sampling
-  
-  r <- new.pres$pa.raster
-  r.grid <- new.pres$pa.raster
-  res(r.grid) <- 0.3
-  p <- rasterToPolygons(r.grid, n=4, na.rm = T)
-  p <- as(p, "SpatialPolygons")
-  
-  df.r <- as.data.frame(r, xy=TRUE, na.rm=TRUE)
-  df.r$layer[df.r$layer==TRUE]<-1
-  df.r$layer[df.r$layer==FALSE]<-0
-  
-  coordinates(df.r)<- ~ x + y
-  crs(df.r) <- crs(p)
-  id <- over(df.r,p) 
-  df.r <- data.frame(x = coordinates(df.r)[,1], y = coordinates(df.r)[,2], pa = df.r@data[,1])
-  df.r <- cbind(df.r, id)
-  
-  p.sf <- st_as_sf(p)
-  p.centroids <- st_centroid(p.sf)
-  p.centroids <- p.centroids %>% rownames_to_column(var="id")
-  p.ctrd.sp <- as_Spatial(p.centroids)
-  pa.centroids <- merge(df.r, p.ctrd.sp, by="id")
-  df.pa.centroids <- pa.centroids %>% group_by(id)%>% mutate(pres = if_else(any(pa == 1), 1, 0))%>% dplyr::select(pres, coords.x1, coords.x2)%>%unique()
-  df.pa.centroids <- df.pa.centroids[,-1]
-  
-  coordinates(df.pa.centroids)<- ~ coords.x1 + coords.x2
-  crs(df.pa.centroids) <- crs(Predictors)
-  values <- raster::extract(Predictors[[myRandNum[[i]]]], df.pa.centroids, df=T, na.rm = TRUE)
-  values <- values[,-1]
-  df.pred.centroids <- cbind(pres=df.pa.centroids@data[,1], x=df.pa.centroids$coords.x1, y= df.pa.centroids$coords.x2, values)
-  df.pred.centroids <- df.pred.centroids %>% filter(complete.cases(.))
-  
-  sample.p0.5 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(333)
-  sample.a0.5 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(667) 
-  sample.0.5 <- rbind(sample.p0.5, sample.a0.5)
-  
-  sample.p0.2 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(167)
-  sample.a0.2 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(833)
-  sample.0.2 <- rbind(sample.p0.2, sample.a0.2)
-  
-  sample.p0.4 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(286)
-  sample.a0.4 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(714)
-  sample.0.4 <- rbind(sample.p0.4, sample.a0.4)
-  
-  sample.p0.6 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(375)
-  sample.a0.6 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(625)
-  sample.0.6 <- rbind(sample.p0.6, sample.a0.6)
-  
-  sample.p0.8 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(444)
-  sample.a0.8 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(556)
-  sample.0.8 <- rbind(sample.p0.8, sample.a0.8)
-  
-  modSpecies <- list(sample.0.2, sample.0.4, sample.0.5, sample.0.6, sample.0.8)
-  
-  for(j in 1:5) {
-    if(j==1){
-      
-      preds <- Predictors[[myRandNum[[i]]]]
-      
-      Model<-multGLM( modSpecies[[j]], sp.cols = 1, var.cols=4:ncol( modSpecies[[j]]), family = "binomial", step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, P.prediction = TRUE, Favourability = TRUE) 
-      Pred<- getPreds(preds, models=Model$models, id.col = NULL, Y = FALSE, P = TRUE, Favourability = TRUE)
-      crs(Pred) <- crs(Predictors)
-      Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))  
-
-      Outputs02=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-      
-      print(Outputs02)
-      
-    }else if(j==2){
-      
-      preds <- Predictors[[myRandNum[[i]]]] 
-      
-      Model<-multGLM( modSpecies[[j]], sp.cols = 1, var.cols=4:ncol( modSpecies[[j]]), family = "binomial", step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, P.prediction = TRUE, Favourability = TRUE) 
-      Pred<- getPreds(preds, models=Model$models, id.col = NULL, Y = FALSE, P = TRUE, Favourability = TRUE)
-      crs(Pred) <- crs(Predictors)
-      Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))  
-
-      Outputs04=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-      
-      print(Outputs04)
-      
-    }else if(j==3){
-      
-      preds <- Predictors[[myRandNum[[i]]]] 
-      
-      Model<-multGLM( modSpecies[[j]], sp.cols = 1, var.cols=4:ncol( modSpecies[[j]]), family = "binomial", step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, P.prediction = TRUE, Favourability = TRUE) 
-      Pred<- getPreds(preds, models=Model$models, id.col = NULL, Y = FALSE, P = TRUE, Favourability = TRUE)
-      crs(Pred) <- crs(Predictors)
-      Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))  
-
-      Outputs05=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-      print(Outputs05)
-      
-    }else if(j==4){
-      
-      preds <- Predictors[[myRandNum[[i]]]] 
-      
-      Model<-multGLM( modSpecies[[j]], sp.cols = 1, var.cols=4:ncol( modSpecies[[j]]), family = "binomial", step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, P.prediction = TRUE, Favourability = TRUE) 
-      Pred<- getPreds(preds, models=Model$models, id.col = NULL, Y = FALSE, P = TRUE, Favourability = TRUE)
-      crs(Pred) <- crs(Predictors)
-      Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))  
-
-      Outputs06=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-      print(Outputs06)
-      
-    }else if(j==5){
-      
-      preds <- Predictors[[myRandNum[[i]]]] 
-      
-      Model<-multGLM( modSpecies[[j]], sp.cols = 1, var.cols=4:ncol( modSpecies[[j]]), family = "binomial", step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, P.prediction = TRUE, Favourability = TRUE) 
-      Pred<- getPreds(preds, models=Model$models, id.col = NULL, Y = FALSE, P = TRUE, Favourability = TRUE)
-      crs(Pred) <- crs(Predictors)
-      Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))  
-
-      Outputs08=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-      
-      print(Outputs08)
-      
-     
-    }
-    
-  }
-  
-  Outputs=list( Outputs02, Outputs04, Outputs05, Outputs06, Outputs08)
-  Outputs.l[[i]] <- Outputs 
-  }
-  
-  return(Outputs.l)
-  
-}
-  
-SsdmGLM <- Stratified.SDM(envData)
-
-  
-########### RANDOM FOREST #########
-  
-  ###### RANDOM SAMPLE  ######
-
-  Random.SDM <- function(alpha=-0.05,value=NULL,Predictors=NULL, SamplePoints=NULL) {
-  
-    set.seed(999)
-    myRandNum=replicate(50, sample(1:19,size=5, replace = FALSE), simplify = FALSE)
-    
-    Outputs.l <- list()
-  
-  #widespread species, at the moment
-    for (i in 1:length(myRandNum)) {
-  set.seed(999)    
-  random.sp <- virtualspecies::generateRandomSp(Predictors[[myRandNum[[i]]]],
-                                                convert.to.PA = FALSE,
-                                                species.type = "additive",
-                                                realistic.sp = TRUE,
-                                                plot = FALSE)
-  set.seed(999)
-  new.pres<-convertToPA(random.sp, 
-                        beta="random",
-                        alpha = alpha, plot = FALSE, 
-                        species.prevalence = 0.2) 
-
-  
- 
-    presence.points <- sampleOccurrences(new.pres,
-                                         n = SamplePoints, 
-                                         type = "presence-absence",
-                                         sample.prevalence = value,
-                                         detection.probability = 1,
-                                         correct.by.suitability = FALSE,
-                                         plot = FALSE)  
-  
-  
-  PresAbs=presence.points$sample.points[, c( "x", "y",  "Observed")]
-  coordinates(PresAbs)<-~x+y 
-  crs(PresAbs)<-crs(Predictors) 
-  values <- raster::extract(Predictors[[myRandNum[[i]]]],PresAbs, df=T)
-  values <- values[,-1]
- 
-  modSpecies<- data.frame(pres = PresAbs@data[,1], x = PresAbs$x, y = PresAbs$y, values[1:ncol(values)])
-  
-      
-      
-      
-  sp_cols <- 1
-  pred_cols <- 4:8
-  names(modSpecies)[sp_cols]
-  names(modSpecies)[pred_cols]
-      
-  ## newdata for prediction
-  
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
-  form_rf <- as.formula(paste0(names(modSpecies)[sp_cols], "~", paste0((names(modSpecies)[pred_cols]), collapse = "+")))
-     
-  
-  ## Favourability and Probability
-  
-  Model<-ranger(form_rf, data= modSpecies, importance='impurity') 
-  Pred<- predict(
-    Model,
-    data =preds,
-    predict.all = FALSE,
-    num.trees = Model$num.trees)
-
-  prediction <- data.frame(predsXY[,1:2], Pred$predictions)
-  prediction$Pred.predictions[ prediction$Pred.predictions == 1] <- 1 - 2.2e-16  
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(value + (x)/(1-x)))  
-  
-  Outputs=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"=modSpecies) 
-              
- Outputs.l[[i]] <- Outputs 
-  }
-   
-  return(Outputs.l)
-  
-}
-
-
-listV <- list(0.2, 0.4, 0.5, 0.6, 0.8)
-
-
-for(i in 1:5) {
-  if(i==1){
-    
-    Rsdm02RF <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm02RF)
-    
-  }else if(i==2){
-    
-    Rsdm04RF <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm04RF)
-    
-  }else if(i==3){
-    
-    
-    Rsdm05RF <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm05RF)
-    
-  }else if(i==4){
-    
-    
-    Rsdm06RF <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm06RF)
-    
-  }else if(i==5){
-    
-    
-    Rsdm08RF <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print( Rsdm08RF)
-    
-   
-  }
-  
-}
-
-    ####### STRATIFIED SAMPLE ######
-  
-Stratified.SDM <- function(Predictors=NULL, alpha= -0.05) {
-  
-  
-  set.seed(999)
-  myRandNum=replicate(50, sample(1:19,size=5, replace = FALSE), simplify = FALSE)
-  
-  Outputs.l <- list()
-  
-  #widespread species, at the moment
-  for (i in 1:length(myRandNum)) {
-    set.seed(999)    
-    random.sp <- virtualspecies::generateRandomSp(Predictors[[myRandNum[[i]]]],
-                                                  convert.to.PA = FALSE,
-                                                  species.type = "additive",
-                                                  realistic.sp = TRUE,
-                                                  plot = FALSE)
-    set.seed(999)
-    new.pres<-convertToPA(random.sp, 
-                          beta="random",
-                          alpha = alpha, plot = FALSE, 
-                          species.prevalence = 0.2) 
-    
-    
-    
-    r <- new.pres$pa.raster
-  r.grid <- new.pres$pa.raster
-  res(r.grid) <- 0.3
-  p <- rasterToPolygons(r.grid, n=4, na.rm = T)
-  p <- as(p, "SpatialPolygons")
-  
-  df.r <- as.data.frame(r, xy=TRUE, na.rm=TRUE)
-  df.r$layer[df.r$layer==TRUE]<-1
-  df.r$layer[df.r$layer==FALSE]<-0
-  
-  coordinates(df.r)<- ~ x + y
-  crs(df.r) <- crs(p)
-  id <- over(df.r,p) 
-  df.r <- data.frame(x = coordinates(df.r)[,1], y = coordinates(df.r)[,2], pa = df.r@data[,1])
-  df.r <- cbind(df.r, id)
-  
-  p.sf <- st_as_sf(p)
-  p.centroids <- st_centroid(p.sf)
-  p.centroids <- p.centroids %>% rownames_to_column(var="id")
-  p.ctrd.sp <- as_Spatial(p.centroids)
-  pa.centroids <- merge(df.r, p.ctrd.sp, by="id")
-  df.pa.centroids <- pa.centroids %>% group_by(id)%>% mutate(pres = if_else(any(pa == 1), 1, 0))%>% dplyr::select(pres, coords.x1, coords.x2)%>%unique()
-  df.pa.centroids <- df.pa.centroids[,-1]
-  
-  coordinates(df.pa.centroids)<- ~ coords.x1 + coords.x2
-  crs(df.pa.centroids) <- crs(Predictors)
-  values <- raster::extract(Predictors[[myRandNum[[i]]]], df.pa.centroids, df=T, na.rm = TRUE)
-  values <- values[,-1]
-  df.pred.centroids <- cbind(pres=df.pa.centroids@data[,1], x=df.pa.centroids$coords.x1, y= df.pa.centroids$coords.x2, values)
-  df.pred.centroids <- df.pred.centroids %>% filter(complete.cases(.))
-    
-    sample.p0.5 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(333)
-    sample.a0.5 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(667) 
-    sample.0.5 <- rbind(sample.p0.5, sample.a0.5)
-     sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.5)[sp_cols]
-  names(sample.0.5)[pred_cols]
-    
-    sample.p0.2 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(167)
-    sample.a0.2 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(833)
-    sample.0.2 <- rbind(sample.p0.2, sample.a0.2)
-     sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.2)[sp_cols]
-  names(sample.0.2)[pred_cols]
-    
-    
-    sample.p0.4 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(286)
-    sample.a0.4 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(714)
-    sample.0.4 <- rbind(sample.p0.4, sample.a0.4)
-     sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.4)[sp_cols]
-  names(sample.0.4)[pred_cols]
-    
-    sample.p0.6 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(375)
-    sample.a0.6 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(625)
-    sample.0.6 <- rbind(sample.p0.6, sample.a0.6)
-     sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.6)[sp_cols]
-  names(sample.0.6)[pred_cols]
-    
-    sample.p0.8 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(444)
-    sample.a0.8 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(556)
-    sample.0.8 <- rbind(sample.p0.8, sample.a0.8)
-     sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.8)[sp_cols]
-  names(sample.0.8)[pred_cols]
-    
-    modSpecies <- list(sample.0.2, sample.0.4, sample.0.5, sample.0.6, sample.0.8)
-    
-    
-    for(j in 1:5) {
-      if(j==1){
-        
-        
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  form_rf <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0((names(modSpecies[[j]])[pred_cols]), collapse = "+")))
-  
-  ## Favourability and Probability
-  
-  Model<-ranger(form_rf, data= modSpecies[[j]], importance='impurity') 
- 
-  Pred<- predict(
-    Model,
-    data =preds,
-    predict.all = FALSE,
-    num.trees = Model$num.trees)
-
-  prediction <- data.frame(predsXY[,1:2], Pred$predictions)
-  prediction$Pred.predictions[ prediction$Pred.predictions == 1] <- 1 - 2.2e-16
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))  
-
-      Outputs02=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs02)
-        
-      }else if(j==2){
-        
-        
-          preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-        
-  form_rf <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0((names(modSpecies[[j]])[pred_cols]), collapse = "+")))
-  
-  ## Favourability and Probability
-  
-  Model<-ranger(form_rf, data= modSpecies[[j]], importance='impurity') 
-  Pred<- predict(
-    Model,
-    data =preds,
-    predict.all = FALSE,
-    num.trees = Model$num.trees)
-
-  prediction <- data.frame(predsXY[,1:2], Pred$predictions)
-  prediction$Pred.predictions[ prediction$Pred.predictions == 1] <- 1 - 2.2e-16
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))  
-
-      Outputs04=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs04)
-        
-      }else if(j==3){
-        
-        
-         preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
- form_rf <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0((names(modSpecies[[j]])[pred_cols]), collapse = "+")))
-  
-  ## Favourability and Probability
-  
-  Model<-ranger(form_rf, data= modSpecies[[j]], importance='impurity') 
-  Pred<- predict(
-    Model,
-    data =preds,
-    predict.all = FALSE,
-    num.trees = Model$num.trees)
-
-  prediction <- data.frame(predsXY[,1:2], Pred$predictions)
-  prediction$Pred.predictions[ prediction$Pred.predictions == 1] <- 1 - 2.2e-16      
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))  
-
-      Outputs05=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs05)
-        
-      }else if(j==4){
-        
-        
-     preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
- form_rf <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0((names(modSpecies[[j]])[pred_cols]), collapse = "+")))
-  
-  ## Favourability and Probability
-  
-  Model<-ranger(form_rf, data= modSpecies[[j]], importance='impurity')  
-  Pred<- predict(
-    Model,
-    data =preds,
-    predict.all = FALSE,
-    num.trees = Model$num.trees)
-
-  prediction <- data.frame(predsXY[,1:2], Pred$predictions)
-  prediction$Pred.predictions[ prediction$Pred.predictions == 1] <- 1 - 2.2e-16
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))  
-
-      Outputs06=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs06)
-        
-      }else if(j==5){
-        
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
- form_rf <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0((names(modSpecies[[j]])[pred_cols]), collapse = "+")))
-  
-  ## Favourability and Probability
-  
-  Model<-ranger(form_rf, data= modSpecies[[j]], importance='impurity') 
-  Pred<- predict(
-    Model,
-    data =preds,
-    predict.all = FALSE,
-    num.trees = Model$num.trees)
-
-  prediction <- data.frame(predsXY[,1:2], Pred$predictions)
-  prediction$Pred.predictions[ prediction$Pred.predictions == 1] <- 1 - 2.2e-16
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))  
-
-      Outputs08=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs08)
-        
-      
-      }
-      
-    }
-    
-    Outputs=list( Outputs02, Outputs04, Outputs05, Outputs06, Outputs08)
-    Outputs.l[[i]] <- Outputs 
-  }
-  
-  return(Outputs.l)
-  
-}
-
-
-
-SsdmRF <- Stratified.SDM(envData)
-  
-  
-  
- #########  GAM  #########
-  
-   ###### RANDOM SAMPLE  ######
-
-  Random.SDM <- function(alpha=-0.05,value=NULL,Predictors=NULL, SamplePoints=NULL) {
-  
-    set.seed(999)
-    myRandNum=replicate(50, sample(1:19,size=5, replace = FALSE), simplify = FALSE)
-    
-    Outputs.l <- list()
-  
-  #widespread species, at the moment
-    for (i in 1:length(myRandNum)) {
-  set.seed(999)    
-  random.sp <- virtualspecies::generateRandomSp(Predictors[[myRandNum[[i]]]],
-                                                convert.to.PA = FALSE,
-                                                species.type = "additive",
-                                                realistic.sp = TRUE,
-                                                plot = FALSE)
-  set.seed(999)
-  new.pres<-convertToPA(random.sp, 
-                        beta="random",
-                        alpha = alpha, plot = FALSE, 
-                        species.prevalence = 0.2) 
-
-  
- 
-    presence.points <- sampleOccurrences(new.pres,
-                                         n = SamplePoints, 
-                                         type = "presence-absence",
-                                         sample.prevalence = value,
-                                         detection.probability = 1,
-                                         correct.by.suitability = FALSE,
-                                         plot = FALSE)  
-  
-  
-  PresAbs=presence.points$sample.points[, c( "x", "y",  "Observed")]
-  coordinates(PresAbs)<-~x+y 
-  crs(PresAbs)<-crs(Predictors) 
-  values <- raster::extract(Predictors[[myRandNum[[i]]]],PresAbs, df=T)
-  values <- values[,-1]
- 
-  modSpecies<- data.frame(pres = PresAbs@data[,1], x = PresAbs$x, y = PresAbs$y, values[1:ncol(values)])
-  sp_cols <- 1
-  pred_cols <- 4:8
-  names(modSpecies)[sp_cols]
-  names(modSpecies)[pred_cols]
-      
-  ## newdata for prediction
-  
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
-  form_gam <- as.formula(paste0(names(modSpecies)[sp_cols], "~", paste0("s(", names(modSpecies)[pred_cols], ")", collapse = "+")))
-  Model <- gam(form_gam, family = binomial, data = modSpecies)
-  prediction <- predict(Model, newdata = preds, type = "response")
-  df.prediction <- data.frame(Pred=prediction)
-  prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(value + (x)/(1-x)))  
-  
-  Outputs=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"=modSpecies) 
-              
- Outputs.l[[i]] <- Outputs 
-  }
-   
-  return(Outputs.l)
-  
-}
-
-
-listV <- list(0.2, 0.4, 0.5, 0.6, 0.8)
-
-
-for(i in 1:5) {
-  if(i==1){
-    
-    Rsdm02GAM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm02GAM)
-    
-  }else if(i==2){
-    
-    Rsdm04GAM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm04GAM)
-    
-  }else if(i==3){
-    
-    
-    Rsdm05GAM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm05GAM)
-    
-  }else if(i==4){
-    
-    
-    Rsdm06GAM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm06GAM)
-    
-  }else if(i==5){
-    
-    
-    Rsdm08GAM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print( Rsdm08GAM)
-    
-    
-  }
-  
-}
-
-    ####### STRATIFIE SAMPLE ######
-  
-Stratified.SDM <- function(Predictors=NULL, alpha= -0.05) {
-  
-  
-  set.seed(999)
-  myRandNum=replicate(50, sample(1:19,size=5, replace = FALSE), simplify = FALSE)
-  
-  Outputs.l <- list()
-  
-  #widespread species, at the moment
-  for (i in 1:length(myRandNum)) {
-    set.seed(999)    
-    random.sp <- virtualspecies::generateRandomSp(Predictors[[myRandNum[[i]]]],
-                                                  convert.to.PA = FALSE,
-                                                  species.type = "additive",
-                                                  realistic.sp = TRUE,
-                                                  plot = FALSE)
-    set.seed(999)
-    new.pres<-convertToPA(random.sp, 
-                          beta="random",
-                          alpha = alpha, plot = FALSE, 
-                          species.prevalence = 0.2) 
-    
-    
-    
-   r <- new.pres$pa.raster
-  r.grid <- new.pres$pa.raster
-  res(r.grid) <- 0.3
-  p <- rasterToPolygons(r.grid, n=4, na.rm = T)
-  p <- as(p, "SpatialPolygons")
-  
-  df.r <- as.data.frame(r, xy=TRUE, na.rm=TRUE)
-  df.r$layer[df.r$layer==TRUE]<-1
-  df.r$layer[df.r$layer==FALSE]<-0
-  
-  coordinates(df.r)<- ~ x + y
-  crs(df.r) <- crs(p)
-  id <- over(df.r,p) 
-  df.r <- data.frame(x = coordinates(df.r)[,1], y = coordinates(df.r)[,2], pa = df.r@data[,1])
-  df.r <- cbind(df.r, id)
-  
-  p.sf <- st_as_sf(p)
-  p.centroids <- st_centroid(p.sf)
-  p.centroids <- p.centroids %>% rownames_to_column(var="id")
-  p.ctrd.sp <- as_Spatial(p.centroids)
-  pa.centroids <- merge(df.r, p.ctrd.sp, by="id")
-  df.pa.centroids <- pa.centroids %>% group_by(id)%>% mutate(pres = if_else(any(pa == 1), 1, 0))%>% dplyr::select(pres, coords.x1, coords.x2)%>%unique()
-  df.pa.centroids <- df.pa.centroids[,-1]
-  
-  coordinates(df.pa.centroids)<- ~ coords.x1 + coords.x2
-  crs(df.pa.centroids) <- crs(Predictors)
-  values <- raster::extract(Predictors[[myRandNum[[i]]]], df.pa.centroids, df=T, na.rm = TRUE)
-  values <- values[,-1]
-  df.pred.centroids <- cbind(pres=df.pa.centroids@data[,1], x=df.pa.centroids$coords.x1, y= df.pa.centroids$coords.x2, values)
-  df.pred.centroids <- df.pred.centroids %>% filter(complete.cases(.))
-    
-    sample.p0.5 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(333)
-    sample.a0.5 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(667) 
-    sample.0.5 <- rbind(sample.p0.5, sample.a0.5)
-    sp_cols <- 1
-    pred_cols <- 4:8
-    names(sample.0.5)[sp_cols]
-    names(sample.0.5)[pred_cols]
-    
-    sample.p0.2 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(167)
-    sample.a0.2 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(833)
-    sample.0.2 <- rbind(sample.p0.2, sample.a0.2)
-    sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.2)[sp_cols]
-  names(sample.0.2)[pred_cols]
-    
-    sample.p0.4 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(286)
-    sample.a0.4 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(714)
-    sample.0.4 <- rbind(sample.p0.4, sample.a0.4)
-    sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.4)[sp_cols]
-  names(sample.0.4)[pred_cols]
-    
-    sample.p0.6 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(375)
-    sample.a0.6 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(625)
-    sample.0.6 <- rbind(sample.p0.6, sample.a0.6)
-    sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.6)[sp_cols]
-  names(sample.0.6)[pred_cols]
-    
-    sample.p0.8 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(444)
-    sample.a0.8 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(556)
-    sample.0.8 <- rbind(sample.p0.8, sample.a0.8)
-    sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.8)[sp_cols]
-  names(sample.0.8)[pred_cols]
-    
-    modSpecies <- list(sample.0.2, sample.0.4, sample.0.5, sample.0.6, sample.0.8)
-    
-    
-    for(j in 1:5) {
-      if(j==1){
-        
-        
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- form_gam <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0("s(", names(modSpecies[[j]])[pred_cols], ")", collapse = "+")))
-      Model <- gam(form_gam, family = binomial, data = modSpecies[[j]])
-      prediction <- predict(Model, newdata = preds, type = "response")
-      df.prediction <- data.frame(Pred=prediction)
-      prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))  
-
-      Outputs02=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs02)
-        
-      }else if(j==2){
-        
-        
-          preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- form_gam <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0("s(", names(modSpecies[[j]])[pred_cols], ")", collapse = "+")))
-      Model <- gam(form_gam, family = binomial, data = modSpecies[[j]])
-      prediction <- predict(Model, newdata = preds, type = "response")
-      df.prediction <- data.frame(Pred=prediction)
-      prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))  
-
-      Outputs04=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs04)
-        
-      }else if(j==3){
-        
-        
-         preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- form_gam <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0("s(", names(modSpecies[[j]])[pred_cols], ")", collapse = "+")))
-      Model <- gam(form_gam, family = binomial, data = modSpecies[[j]])
-      prediction <- predict(Model, newdata = preds, type = "response")
-      df.prediction <- data.frame(Pred=prediction)
-      prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-   Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))  
-
-      Outputs05=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs05)
-        
-      }else if(j==4){
-        
-        
-     preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- form_gam <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0("s(", names(modSpecies[[j]])[pred_cols], ")", collapse = "+")))
-      Model <- gam(form_gam, family = binomial, data = modSpecies[[j]])
-      prediction <- predict(Model, newdata = preds, type = "response")
-      df.prediction <- data.frame(Pred=prediction)
-      prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))  
-
-      Outputs06=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs06)
-        
-      }else if(j==5){
-        
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- form_gam <- as.formula(paste0(names(modSpecies[[j]])[sp_cols], "~", paste0("s(", names(modSpecies[[j]])[pred_cols], ")", collapse = "+")))
-      Model <- gam(form_gam, family = binomial, data = modSpecies[[j]])
-      prediction <- predict(Model, newdata = preds, type = "response")
-      df.prediction <- data.frame(Pred=prediction)
-      prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-        
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-   Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))  
-
-      Outputs08=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs08)
-        
-      
-      }
-      
-    }
-    
-    Outputs=list( Outputs02, Outputs04, Outputs05, Outputs06, Outputs08)
-    Outputs.l[[i]] <- Outputs 
-  }
-  
-  return(Outputs.l)
-  
-}
-
-
-
-SsdmGAM <- Stratified.SDM(envData)
-  
-  
- ########## GBM ##########
-  
-  
-   ###### RANDOM SAMPLE  ######
-
-  Random.SDM <- function(alpha=-0.05,value=NULL,Predictors=NULL, SamplePoints=NULL) {
-  
-    set.seed(999)
-    myRandNum=replicate(50, sample(1:19,size=5, replace = FALSE), simplify = FALSE)
-    
-    Outputs.l <- list()
-  
-  #widespread species, at the moment
-    for (i in 1:length(myRandNum)) {
-  set.seed(999)    
-  random.sp <- virtualspecies::generateRandomSp(Predictors[[myRandNum[[i]]]],
-                                                convert.to.PA = FALSE,
-                                                species.type = "additive",
-                                                realistic.sp = TRUE,
-                                                plot = FALSE)
-  set.seed(999)
-  new.pres<-convertToPA(random.sp, 
-                        beta="random",
-                        alpha = alpha, plot = FALSE, 
-                        species.prevalence = 0.2) 
-
-  
- 
-    presence.points <- sampleOccurrences(new.pres,
-                                         n = SamplePoints, 
-                                         type = "presence-absence",
-                                         sample.prevalence = value,
-                                         detection.probability = 1,
-                                         correct.by.suitability = FALSE,
-                                         plot = FALSE)  
-  
-  
-  PresAbs=presence.points$sample.points[, c( "x", "y",  "Observed")]
-  coordinates(PresAbs)<-~x+y 
-  crs(PresAbs)<-crs(Predictors) 
-  values <- raster::extract(Predictors[[myRandNum[[i]]]],PresAbs, df=T)
-  values <- values[,-1]
- 
-  modSpecies<- data.frame(pres = PresAbs@data[,1], x = PresAbs$x, y = PresAbs$y, values[1:ncol(values)])
-  sp_cols <- 1
-  pred_cols <- 4:8
-  names(modSpecies)[sp_cols]
-  names(modSpecies)[pred_cols]
-      
-  ## newdata for prediction
-  
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- Model <- gbm.step(data = modSpecies, 
-                                    gbm.x = names(modSpecies)[pred_cols],
-                                     gbm.y = names(modSpecies)[sp_cols], 
-                                     family = 'bernoulli',
-                                     tree.complexity = 5,
-                                     bag.fraction = 0.75,
-                                    learning.rate = 0.005,
-                                     verbose=F)
-  prediction <- predict.gbm(Model, newdata = preds, n.trees=Model$gbm.call$best.trees, type="response")
-  df.prediction <- data.frame(Pred=prediction)
-  prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-  
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(value + (x)/(1-x)))  
-  
-  Outputs=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"=modSpecies) 
-              
- Outputs.l[[i]] <- Outputs 
-  }
-   
-  return(Outputs.l)
-  
-}
-
-
-listV <- list(0.2, 0.4, 0.5, 0.6, 0.8)
-
-
-for(i in 1:5) {
-  if(i==1){
-    
-    Rsdm02GBM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm02GBM)
-    
-  }else if(i==2){
-    
-    Rsdm04GBM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm04GBM)
-    
-  }else if(i==3){
-    
-    
-    Rsdm05GBM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm05GBM)
-    
-  }else if(i==4){
-    
-    
-    Rsdm06GBM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print(Rsdm06GBM)
-    
-  }else if(i==5){
-    
-    
-    Rsdm08GBM <- Random.SDM(alpha=-0.05,value= listV[[i]],Predictors=envData, SamplePoints=1000)
-    
-    
-    print( Rsdm08GBM)
-    
-    
-  }
-  
-}
-
-    ####### STRATIFIED SAMPLE ######
-  
-Stratified.SDM <- function(Predictors=NULL, alpha= -0.05) {
-  
-  
-  set.seed(999)
-  myRandNum=replicate(50, sample(1:19,size=5, replace = FALSE), simplify = FALSE)
-  
-  Outputs.l <- list()
-  
-  #widespread species, at the moment
-  for (i in 1:length(myRandNum)) {
-    set.seed(999)    
-    random.sp <- virtualspecies::generateRandomSp(Predictors[[myRandNum[[i]]]],
-                                                  convert.to.PA = FALSE,
-                                                  species.type = "additive",
-                                                  realistic.sp = TRUE,
-                                                  plot = FALSE)
-    set.seed(999)
-    new.pres<-convertToPA(random.sp, 
-                          beta="random",
-                          alpha = alpha, plot = FALSE, 
-                          species.prevalence = 0.2) 
-    
-    
-    
-   r <- new.pres$pa.raster
-  r.grid <- new.pres$pa.raster
-  res(r.grid) <- 0.3
-  p <- rasterToPolygons(r.grid, n=4, na.rm = T)
-  p <- as(p, "SpatialPolygons")
-  
-  df.r <- as.data.frame(r, xy=TRUE, na.rm=TRUE)
-  df.r$layer[df.r$layer==TRUE]<-1
-  df.r$layer[df.r$layer==FALSE]<-0
-  
-  coordinates(df.r)<- ~ x + y
-  crs(df.r) <- crs(p)
-  id <- over(df.r,p) 
-  df.r <- data.frame(x = coordinates(df.r)[,1], y = coordinates(df.r)[,2], pa = df.r@data[,1])
-  df.r <- cbind(df.r, id)
-  
-  p.sf <- st_as_sf(p)
-  p.centroids <- st_centroid(p.sf)
-  p.centroids <- p.centroids %>% rownames_to_column(var="id")
-  p.ctrd.sp <- as_Spatial(p.centroids)
-  pa.centroids <- merge(df.r, p.ctrd.sp, by="id")
-  df.pa.centroids <- pa.centroids %>% group_by(id)%>% mutate(pres = if_else(any(pa == 1), 1, 0))%>% dplyr::select(pres, coords.x1, coords.x2)%>%unique()
-  df.pa.centroids <- df.pa.centroids[,-1]
-  
-  coordinates(df.pa.centroids)<- ~ coords.x1 + coords.x2
-  crs(df.pa.centroids) <- crs(Predictors)
-  values <- raster::extract(Predictors[[myRandNum[[i]]]], df.pa.centroids, df=T, na.rm = TRUE)
-  values <- values[,-1]
-  df.pred.centroids <- cbind(pres=df.pa.centroids@data[,1], x=df.pa.centroids$coords.x1, y= df.pa.centroids$coords.x2, values)
-  df.pred.centroids <- df.pred.centroids %>% filter(complete.cases(.))
-    
-    sample.p0.5 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(333)
-    sample.a0.5 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(667) 
-    sample.0.5 <- rbind(sample.p0.5, sample.a0.5)
-    sp_cols <- 1
-    pred_cols <- 4:8
-    names(sample.0.5)[sp_cols]
-    names(sample.0.5)[pred_cols]
-    
-    sample.p0.2 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(167)
-    sample.a0.2 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(833)
-    sample.0.2 <- rbind(sample.p0.2, sample.a0.2)
-    sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.2)[sp_cols]
-  names(sample.0.2)[pred_cols]
-    
-    sample.p0.4 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(286)
-    sample.a0.4 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(714)
-    sample.0.4 <- rbind(sample.p0.4, sample.a0.4)
-    sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.4)[sp_cols]
-  names(sample.0.4)[pred_cols]
-    
-    sample.p0.6 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(375)
-    sample.a0.6 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(625)
-    sample.0.6 <- rbind(sample.p0.6, sample.a0.6)
-    sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.6)[sp_cols]
-  names(sample.0.6)[pred_cols]
-    
-    sample.p0.8 <- df.pred.centroids %>%filter(!pres==0)%>% as.data.frame()%>% sample_n(444)
-    sample.a0.8 <- df.pred.centroids %>%filter(!pres==1)%>% as.data.frame()%>% sample_n(556)
-    sample.0.8 <- rbind(sample.p0.8, sample.a0.8)
-    sp_cols <- 1
-  pred_cols <- 4:8
-  names(sample.0.8)[sp_cols]
-  names(sample.0.8)[pred_cols]
-    
-    modSpecies <- list(sample.0.2, sample.0.4, sample.0.5, sample.0.6, sample.0.8)
-    
-    
-    for(j in 1:5) {
-      if(j==1){
-        
-        
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- Model <- gbm.step(data = modSpecies[[j]], 
-                                    gbm.x = names(modSpecies[[j]])[pred_cols],
-                                     gbm.y = names(modSpecies[[j]])[sp_cols], 
-                                     family = 'bernoulli',
-                                     tree.complexity = 5,
-                                     bag.fraction = 0.75,
-                                    learning.rate = 0.005,
-                                     verbose=F)
-  prediction <- predict.gbm(Model, newdata = preds, n.trees=Model$gbm.call$best.trees, type="response")
-  df.prediction <- data.frame(Pred=prediction)
-  prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-  
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-   Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))  
-
-      Outputs02=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs02)
-        
-      }else if(j==2){
-        
-        
-          preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- Model <- gbm.step(data = modSpecies[[j]], 
-                                    gbm.x = names(modSpecies[[j]])[pred_cols],
-                                     gbm.y = names(modSpecies[[j]])[sp_cols], 
-                                     family = 'bernoulli',
-                                     tree.complexity = 5,
-                                     bag.fraction = 0.75,
-                                    learning.rate = 0.005,
-                                     verbose=F)
-  prediction <- predict.gbm(Model, newdata = preds, n.trees=Model$gbm.call$best.trees, type="response")
-  df.prediction <- data.frame(Pred=prediction)
-  prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-  
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))  
-
-      Outputs04=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs04)
-        
-      }else if(j==3){
-        
-        
-         preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- Model <- gbm.step(data = modSpecies[[j]], 
-                                    gbm.x = names(modSpecies[[j]])[pred_cols],
-                                     gbm.y = names(modSpecies[[j]])[sp_cols], 
-                                     family = 'bernoulli',
-                                     tree.complexity = 5,
-                                     bag.fraction = 0.75,
-                                    learning.rate = 0.005,
-                                     verbose=F)
-  prediction <- predict.gbm(Model, newdata = preds, n.trees=Model$gbm.call$best.trees, type="response")
-  df.prediction <- data.frame(Pred=prediction)
-  prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-  
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))  
-
-      Outputs05=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs05)
-        
-      }else if(j==4){
-        
-        
-     preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
- Model <- gbm.step(data = modSpecies[[j]], 
-                                    gbm.x = names(modSpecies[[j]])[pred_cols],
-                                     gbm.y = names(modSpecies[[j]])[sp_cols], 
-                                     family = 'bernoulli',
-                                     tree.complexity = 5,
-                                     bag.fraction = 0.75,
-                                    learning.rate = 0.005,
-                                     verbose=F)
-  prediction <- predict.gbm(Model, newdata = preds, n.trees=Model$gbm.call$best.trees, type="response")
-  df.prediction <- data.frame(Pred=prediction)
-  prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-  
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))  
-
-      Outputs06=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs06)
-        
-      }else if(j==5){
-        
-  preds <- as.data.frame(Predictors[[myRandNum[[i]]]]) %>%drop_na()
-  
-  predsXY <- as.data.frame(Predictors[[myRandNum[[i]]]], xy=T) %>%drop_na()
-  
-  ## Favourability and Probability
-  
-  Model <- gbm.step(data = modSpecies[[j]], 
-                                    gbm.x = names(modSpecies[[j]])[pred_cols],
-                                     gbm.y = names(modSpecies[[j]])[sp_cols], 
-                                     family = 'bernoulli',
-                                     tree.complexity = 5,
-                                     bag.fraction = 0.75,
-                                    learning.rate = 0.005,
-                                     verbose=F)
-  prediction <- predict.gbm(Model, newdata = preds, n.trees=Model$gbm.call$best.trees, type="response")
-  df.prediction <- data.frame(Pred=prediction)
-  prediction <- data.frame(predsXY[,1:2], df.prediction$Pred)
-  
-  Pred <- rasterFromXYZ(prediction, crs="+proj=longlat +datum=WGS84 +no_defs")
-  Fav <- calc(Pred, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))  
-
-      Outputs08=list( "Mods"=Model, "Raster"=Pred, "RasterF" = Fav, "ModelDatabase"= modSpecies[[j]])
-        print(Outputs08)
-        
-      
-      }
-      
-    }
-    
-    Outputs=list( Outputs02, Outputs04, Outputs05, Outputs06, Outputs08)
-    Outputs.l[[i]] <- Outputs 
-  }
-  
-  return(Outputs.l)
-  
-}
-
-
-
-SsdmGBM <- Stratified.SDM(envData)
-  
-
-              
 ########### Boyce functions for favpurability and probability of each statistical model #########
-              
-              
-  BoyceGLM <- function(x){
+
+
+
+library(groupdata2)
+
+
+BoyceGLM02 <- function(x){
   library(ecospat)
-  obs <- x$ModelDatabase[which(x$ModelDatabase$pres==1),]
-  boyce <- ecospat.boyce(x$Raster$pres_P, obs[,2:3], nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  
+   Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+  b <- data.frame(cbind(pred=Pred$pres_P, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
   return(boyce)
 }
 
-BoyceGLMFav <- function(x){
+BoyceGLM04 <- function(x){
   library(ecospat)
-  obs <- x$ModelDatabase[which(x$ModelDatabase$pres==1),]
-  boyce <- ecospat.boyce(x$RasterF$layer, obs[,2:3], nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
-  return(boyce)
-}
-              
-  BoyceRF <- function(x){
-  library(ecospat)
-  obs <- x$ModelDatabase[which(x$ModelDatabase$pres==1),]
-  boyce <- ecospat.boyce(x$Raster$Pred.predictions, obs[,2:3], nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
-  return(boyce)
-}
-
-BoyceRFFav <- function(x){
-  library(ecospat)
-  obs <- x$ModelDatabase[which(x$ModelDatabase$pres==1),]
-  boyce <- ecospat.boyce(x$RasterF$layer, obs[,2:3], nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
-  return(boyce)
-}          
-              
-  BoyceGAM <- function(x){
-  library(ecospat)
-  obs <- x$ModelDatabase[which(x$ModelDatabase$pres==1),]
-  boyce <- ecospat.boyce(x$Raster$df.prediction.Pred, obs[,2:3], nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
-  return(boyce)
-}
-
-   BoyceGAMFav <- function(x){
-  library(ecospat)
-  obs <- x$ModelDatabase[which(x$ModelDatabase$pres==1),]
-  boyce <- ecospat.boyce(x$RasterF$layer, obs[,2:3], nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
-  return(boyce)
-}             
-              
-BoyceGBM <- function(x){
-  library(ecospat)
-  obs <- x$ModelDatabase[which(x$ModelDatabase$pres==1),]
-  boyce <- ecospat.boyce(x$Raster$df.prediction.Pred, obs[,2:3], nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  
+   Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+  
+  b <- data.frame(cbind(pred=Pred$pres_P, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
   return(boyce)
 }
 
-              BoyceGBMFav <- function(x){
+
+BoyceGLM05 <- function(x){
   library(ecospat)
-  obs <- x$ModelDatabase[which(x$ModelDatabase$pres==1),]
-  boyce <- ecospat.boyce(x$RasterF$layer, obs[,2:3], nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  
+   Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+  
+  
+  b <- data.frame(cbind(pred=Pred$pres_P, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
   return(boyce)
 }
+
+BoyceGLM06 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  
+   Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+  
+  
+  b <- data.frame(cbind(pred=Pred$pres_P, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGLM08 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <- as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  
+   Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+  
+  b <- data.frame(cbind(pred=Pred$pres_P, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGLMFav02 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+  
+  #Favourability
+  Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+  Pred$Fav <- ((Pred$pres_P)/(1-Pred$pres_P))/(0.2 + (Pred$pres_P)/(1-Pred$pres_P))
+  
+  b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGLMFav04 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  #Favourability
+  Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+ 
+  
+ Pred$Fav <- ((Pred$pres_P)/(1-Pred$pres_P))/(0.4 + (Pred$pres_P)/(1-Pred$pres_P))
+  
+  b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGLMFav05 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  #Favourability
+  Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+  
+  Pred$Fav <- ((Pred$pres_P)/(1-Pred$pres_P))/(0.5 + (Pred$pres_P)/(1-Pred$pres_P))
+  
+  b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGLMFav06 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  #Favourability
+  Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+ 
+ Pred$Fav <- ((Pred$pres_P)/(1-Pred$pres_P))/(0.6 + (Pred$pres_P)/(1-Pred$pres_P))
+  
+  b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGLMFav08 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <- as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  #Favourability
+  Model<-multGLM(training, sp.cols = 1, var.cols=2:ncol(training), family = "binomial",
+                 step = FALSE, FDR = FALSE, trim = FALSE, Y.prediction = FALSE, 
+                 P.prediction = TRUE, Favourability = TRUE)
+  Pred<- getPreds(validation[2:ncol(validation)], models=Model$models, id.col = NULL, Y = FALSE, P = TRUE,
+                  Favourability = FALSE)
+  
+  
+  Pred$Fav <- ((Pred$pres_P)/(1-Pred$pres_P))/(0.8 + (Pred$pres_P)/(1-Pred$pres_P))
+  
+  b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+##########################
+##########################
+
+BoyceRF02 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  Model<-ranger(training$pres ~., data= training, importance='impurity') 
+    Pred<- predict(
+      Model,
+      data = validation[2:ncol(validation)],
+      predict.all = FALSE,
+      num.trees = Model$num.trees)
+      
+  Pred <- data.frame(predictions= Pred[["predictions"]])
+  Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+  
+  b <- data.frame(cbind(pred=Pred$predictions, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceRF04 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+  
+  Model<-ranger(training$pres ~., data= training, importance='impurity') 
+    Pred<- predict(
+      Model,
+      data = validation[2:ncol(validation)],
+      predict.all = FALSE,
+      num.trees = Model$num.trees)
+      
+  Pred <- data.frame(predictions= Pred[["predictions"]])
+  Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+  
+  b <- data.frame(cbind(pred=Pred$predictions, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceRF05 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+  Model<-ranger(training$pres ~., data= training, importance='impurity') 
+    Pred<- predict(
+      Model,
+      data = validation[2:ncol(validation)],
+      predict.all = FALSE,
+      num.trees = Model$num.trees)
+      
+  Pred <- data.frame(predictions= Pred[["predictions"]])
+  Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+  
+  b <- data.frame(cbind(pred=Pred$predictions, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceRF06 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+  Model<-ranger(training$pres ~., data= training, importance='impurity') 
+    Pred<- predict(
+      Model,
+      data = validation[2:ncol(validation)],
+      predict.all = FALSE,
+      num.trees = Model$num.trees)
+      
+  Pred <- data.frame(predictions= Pred[["predictions"]])
+  Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+  
+  b <- data.frame(cbind(pred=Pred$predictions, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceRF08 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <- as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+  Model<-ranger(training$pres ~., data= training, importance='impurity') 
+    Pred<- predict(
+      Model,
+      data = validation[2:ncol(validation)],
+      predict.all = FALSE,
+      num.trees = Model$num.trees)
+      
+  Pred <- data.frame(predictions= Pred[["predictions"]])
+  Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+  
+  b <- data.frame(cbind(pred=Pred$predictions, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceRFFav02 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+Model<-ranger(training$pres ~., data= training, importance='impurity') 
+Pred<- predict(
+  Model,
+  data = validation[2:ncol(validation)],
+  predict.all = FALSE,
+  num.trees = Model$num.trees)
+Pred <- data.frame(predictions= Pred[["predictions"]])
+Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+Pred$Fav <- ((Pred$predictions)/(1-Pred$predictions))/(0.2 + (Pred$predictions)/(1-Pred$predictions))
+
+b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+obs <- (b$pred
+        [which(b$pres==1)])
+
+boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+
+  return(boyce)
+}
+
+
+BoyceRFFav04 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+Model<-ranger(training$pres ~., data= training, importance='impurity') 
+Pred<- predict(
+  Model,
+  data = validation[2:ncol(validation)],
+  predict.all = FALSE,
+  num.trees = Model$num.trees)
+Pred <- data.frame(predictions= Pred[["predictions"]])
+Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+Pred$Fav <- ((Pred$predictions)/(1-Pred$predictions))/(0.4 + (Pred$predictions)/(1-Pred$predictions))
+
+b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+obs <- (b$pred
+        [which(b$pres==1)])
+
+boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+
+  return(boyce)
+}
+
+
+BoyceRFFav05 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+Model<-ranger(training$pres ~., data= training, importance='impurity') 
+Pred<- predict(
+  Model,
+  data = validation[2:ncol(validation)],
+  predict.all = FALSE,
+  num.trees = Model$num.trees)
+Pred <- data.frame(predictions= Pred[["predictions"]])
+Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+Pred$Fav <- ((Pred$predictions)/(1-Pred$predictions))/(0.5 + (Pred$predictions)/(1-Pred$predictions))
+
+b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+obs <- (b$pred
+        [which(b$pres==1)])
+
+boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+
+  return(boyce)
+}
+
+
+BoyceRFFav06 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+Model<-ranger(training$pres ~., data= training, importance='impurity') 
+Pred<- predict(
+  Model,
+  data = validation[2:ncol(validation)],
+  predict.all = FALSE,
+  num.trees = Model$num.trees)
+Pred <- data.frame(predictions= Pred[["predictions"]])
+Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+Pred$Fav <- ((Pred$predictions)/(1-Pred$predictions))/(0.6 + (Pred$predictions)/(1-Pred$predictions))
+
+b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+obs <- (b$pred
+        [which(b$pres==1)])
+
+boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+
+  return(boyce)
+}
+
+
+BoyceRFFav08 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <- as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+Model<-ranger(training$pres ~., data= training, importance='impurity') 
+Pred<- predict(
+  Model,
+  data = validation[2:ncol(validation)],
+  predict.all = FALSE,
+  num.trees = Model$num.trees)
+Pred <- data.frame(predictions= Pred[["predictions"]])
+Pred$predictions[ Pred$predictions == 1] <- 1 - 2.2e-16
+Pred$Fav <- ((Pred$predictions)/(1-Pred$predictions))/(0.8 + (Pred$predictions)/(1-Pred$predictions))
+
+b <- data.frame(cbind(pred=Pred$Fav, pres=validation$pres))
+obs <- (b$pred
+        [which(b$pres==1)])
+
+boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+
+  return(boyce)
+}
+
+
+#######################################
+#################
+
+BoyceGAM02 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGAM04 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGAM05 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGAM06 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGAM08 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <- as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGAMFav02 <- function(x){
+  library(ecospat)
+
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.2 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+
+}
+
+
+BoyceGAMFav04 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.4 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGAMFav05 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.5 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGAMFav06 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.6 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGAMFav08 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <- as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    form_gam <- as.formula(paste0(names(training)[sp_cols], "~", paste0("s(", names(training)[pred_cols], ")", collapse = "+")))
+    Model <- gam(form_gam, family = binomial, data = training)
+    prediction <- predict(Model, newdata = validation[2:ncol(validation)], type = "response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.8 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+#######################################
+BoyceGBM02 <- function(x){
+  library(ecospat)
+
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGBM04 <- function(x){
+  library(ecospat)
+
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGBM05 <- function(x){
+  library(ecospat)
+
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGBM06 <- function(x){
+  library(ecospat)
+
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGBM08 <- function(x){
+  library(ecospat)
+
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <- as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+  
+  b <- data.frame(cbind(pred=df.prediction$Pred, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+BoyceGBMFav02 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.2 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+
+}
+
+
+BoyceGBMFav04 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- data.frame(rbind(dfP_inds[[1]], dfP_inds[[3]]))
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  data.frame(rbind(dfA_inds[[2]], dfA_inds[[3]]))
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.4 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGBMFav05 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.5 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGBMFav06 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- as.data.frame(dfP_inds[2])
+trainA0.8 <- as.data.frame(dfA_inds[1])
+testA0.2 <-  as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.6 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+
+BoyceGBMFav08 <- function(x){
+  library(ecospat)
+  
+df <- x$ModelDatabase
+dfP <- df %>% filter(pres==1)
+dfA <- df %>% filter(pres==0)
+set.seed(999)
+dfP_inds <- partition(dfP, p = c(train = 0.8, test = 0.2))
+set.seed(999)
+dfA_inds <- partition(dfA, p = c(train = 0.8, test = 0.2))
+trainP0.8 <- as.data.frame(dfP_inds[1])
+testP0.2 <- data.frame(rbind(dfP_inds[[2]], dfP_inds[[3]]))
+trainA0.8 <- data.frame(rbind(dfA_inds[[1]], dfA_inds[[3]]))
+testA0.2 <- as.data.frame(dfA_inds[2])
+train <- rbind(trainP0.8, trainA0.8)
+test <- rbind(testP0.2, testA0.2)
+validation<-test
+training<-train
+
+#Favourability
+ sp_cols <- 1
+    pred_cols <- 2:6
+    names(training)[sp_cols]
+    names(training)[pred_cols]
+    #Favourability
+    
+    Model <- gbm.step(data = training, 
+                      gbm.x = names(training)[pred_cols],
+                      gbm.y = names(training)[sp_cols], 
+                      family = 'bernoulli',
+                      tree.complexity = 5,
+                      bag.fraction = 0.75,
+                      learning.rate = 0.005,
+                      verbose=F)
+    prediction <- predict.gbm(Model, newdata = validation, n.trees=Model$gbm.call$best.trees, type="response")
+    df.prediction <- data.frame(Pred=prediction)
+    
+  df.prediction$Fav <- ((df.prediction$Pred)/(1-df.prediction$Pred))/(0.8 + (df.prediction$Pred)/(1-df.prediction$Pred))
+  b <- data.frame(cbind(pred=df.prediction$Fav, pres=validation$pres))
+  obs <- (b$pred
+          [which(b$pres==1)])
+  
+  boyce <- ecospat.boyce(fit=b$pred, obs=obs, nclass=0, window.w="default", res=100, PEplot = FALSE)$cor
+  return(boyce)
+}
+
+####################################
+####################################
+
+####################################
+####################################
+  
+
             
               
-######### return values #########
- #### Random ####
-
-BoyceFunz02GLM.R <- lapply(Rsdm02GLM, BoyceGLM)
-BoyceFunz04GLM.R <- lapply(Rsdm04GLM, BoyceGLM)
-BoyceFunz05GLM.R <- lapply(Rsdm05GLM, BoyceGLM)
-BoyceFunz06GLM.R <- lapply(Rsdm06GLM, BoyceGLM)
-BoyceFunz08GLM.R <- lapply(Rsdm08GLM, BoyceGLM)
+              
+ BoyceFunz02GLM.R <- lapply(Rsdm02GLM, BoyceGLM02)
+BoyceFunz04GLM.R <- lapply(Rsdm04GLM, BoyceGLM04)
+BoyceFunz05GLM.R <- lapply(Rsdm05GLM, BoyceGLM05)
+BoyceFunz06GLM.R <- lapply(Rsdm06GLM, BoyceGLM06)
+BoyceFunz08GLM.R <- lapply(Rsdm08GLM, BoyceGLM08)
             
 
 Boyce02GLM.R <- data.frame(Boyce02=unlist(BoyceFunz02GLM.R))
@@ -1456,14 +1648,13 @@ Boyce08GLM.R <- data.frame(Boyce08=unlist(BoyceFunz08GLM.R))
 BoyceGLM.R_Prob <- cbind(Boyce02GLM.R, Boyce04GLM.R, Boyce05GLM.R, Boyce06GLM.R, Boyce08GLM.R)
 colnames(BoyceGLM.R_Prob) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGLM.R_Prob, "BoyceGLM.R_Prob.csv")
-BoyceGLM.R_Prob_mean <- apply(BoyceGLM.R_Prob, 2, mean)
-BoyceGLM.R_Prob_median <- apply(BoyceGLM.R_Prob, 2, median)
+
               
-BoyceFunz02GLM.R <- lapply(Rsdm02GLM, BoyceGLMFav)
-BoyceFunz04GLM.R <- lapply(Rsdm04GLM, BoyceGLMFav)
-BoyceFunz05GLM.R <- lapply(Rsdm05GLM, BoyceGLMFav)
-BoyceFunz06GLM.R <- lapply(Rsdm06GLM, BoyceGLMFav)
-BoyceFunz08GLM.R <- lapply(Rsdm08GLM, BoyceGLMFav)
+BoyceFunz02GLM.R <- lapply(Rsdm02GLM, BoyceGLMFav02)
+BoyceFunz04GLM.R <- lapply(Rsdm04GLM, BoyceGLMFav04)
+BoyceFunz05GLM.R <- lapply(Rsdm05GLM, BoyceGLMFav05)
+BoyceFunz06GLM.R <- lapply(Rsdm06GLM, BoyceGLMFav06)
+BoyceFunz08GLM.R <- lapply(Rsdm08GLM, BoyceGLMFav08)
             
 
 Boyce02GLM.R <- data.frame(Boyce02=unlist(BoyceFunz02GLM.R))
@@ -1475,16 +1666,15 @@ Boyce08GLM.R <- data.frame(Boyce08=unlist(BoyceFunz08GLM.R))
 BoyceGLM.R_Fav <- cbind(Boyce02GLM.R, Boyce04GLM.R, Boyce05GLM.R, Boyce06GLM.R, Boyce08GLM.R)
 colnames(BoyceGLM.R_Fav) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGLM.R_Fav, "BoyceGLM.R_Fav.csv")
-BoyceGLM.R_Fav_mean <- apply(BoyceGLM.R_Fav, 2, mean)
-BoyceGLM.R_Fav_median <- apply(BoyceGLM.R_Fav, 2, median)
+
               
 #########
               
-BoyceFunz02RF.R <- lapply(Rsdm02RF, BoyceRF)
-BoyceFunz04RF.R <- lapply(Rsdm04RF, BoyceRF)
-BoyceFunz05RF.R <- lapply(Rsdm05RF, BoyceRF)
-BoyceFunz06RF.R <- lapply(Rsdm06RF, BoyceRF)
-BoyceFunz08RF.R <- lapply(Rsdm08RF, BoyceRF)
+BoyceFunz02RF.R <- lapply(Rsdm02RF, BoyceRF02)
+BoyceFunz04RF.R <- lapply(Rsdm04RF, BoyceRF04)
+BoyceFunz05RF.R <- lapply(Rsdm05RF, BoyceRF05)
+BoyceFunz06RF.R <- lapply(Rsdm06RF, BoyceRF06)
+BoyceFunz08RF.R <- lapply(Rsdm08RF, BoyceRF08)
             
 
 Boyce02RF.R <- data.frame(Boyce02=unlist(BoyceFunz02RF.R))
@@ -1496,15 +1686,14 @@ Boyce08RF.R <- data.frame(Boyce08=unlist(BoyceFunz08RF.R))
 BoyceRF.R_Prob <- cbind(Boyce02RF.R, Boyce04RF.R, Boyce05RF.R, Boyce06RF.R, Boyce08RF.R)
 colnames(BoyceRF.R_Prob) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceRF.R_Prob, "BoyceRF.R_Prob.csv")
-BoyceRF.R_Prob_mean <- apply(BoyceRF.R_Prob, 2, mean)
-BoyceRF.R_Prob_median <- apply(BoyceRF.R_Prob, 2, median)
+
               
               
-BoyceFunz02RF.R <- lapply(Rsdm02RF, BoyceRFFav)
-BoyceFunz04RF.R <- lapply(Rsdm04RF, BoyceRFFav)
-BoyceFunz05RF.R <- lapply(Rsdm05RF, BoyceRFFav)
-BoyceFunz06RF.R <- lapply(Rsdm06RF, BoyceRFFav)
-BoyceFunz08RF.R <- lapply(Rsdm08RF, BoyceRFFav)
+BoyceFunz02RF.R <- lapply(Rsdm02RF, BoyceRFFav02)
+BoyceFunz04RF.R <- lapply(Rsdm04RF, BoyceRFFav04)
+BoyceFunz05RF.R <- lapply(Rsdm05RF, BoyceRFFav05)
+BoyceFunz06RF.R <- lapply(Rsdm06RF, BoyceRFFav06)
+BoyceFunz08RF.R <- lapply(Rsdm08RF, BoyceRFFav08)
             
 
 Boyce02RF.R <- data.frame(Boyce02=unlist(BoyceFunz02RF.R))
@@ -1516,17 +1705,16 @@ Boyce08RF.R <- data.frame(Boyce08=unlist(BoyceFunz08RF.R))
 BoyceRF.R_Fav <- cbind(Boyce02RF.R, Boyce04RF.R, Boyce05RF.R, Boyce06RF.R, Boyce08RF.R)
 colnames(BoyceRF.R_Fav) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceRF.R_Fav, "BoyceRF.R_Fav.csv")
-BoyceRF.R_Fav_mean <- apply(BoyceRF.R_Fav, 2, mean)
-BoyceRF.R_Fav_median <- apply(BoyceRF.R_Fav, 2, median)
+
               
               
  #############             
   
-BoyceFunz02GAM.R <- lapply(Rsdm02GAM, BoyceGAM)
-BoyceFunz04GAM.R <- lapply(Rsdm04GAM, BoyceGAM)
-BoyceFunz05GAM.R <- lapply(Rsdm05GAM, BoyceGAM)
-BoyceFunz06GAM.R <- lapply(Rsdm06GAM, BoyceGAM)
-BoyceFunz08GAM.R <- lapply(Rsdm08GAM, BoyceGAM)
+BoyceFunz02GAM.R <- lapply(Rsdm02GAM, BoyceGAM02)
+BoyceFunz04GAM.R <- lapply(Rsdm04GAM, BoyceGAM04)
+BoyceFunz05GAM.R <- lapply(Rsdm05GAM, BoyceGAM05)
+BoyceFunz06GAM.R <- lapply(Rsdm06GAM, BoyceGAM06)
+BoyceFunz08GAM.R <- lapply(Rsdm08GAM, BoyceGAM08)
             
 
 Boyce02GAM.R <- data.frame(Boyce02=unlist(BoyceFunz02GAM.R))
@@ -1538,14 +1726,12 @@ Boyce08GAM.R <- data.frame(Boyce08=unlist(BoyceFunz08GAM.R))
 BoyceGAM.R_Prob <- cbind(Boyce02GAM.R, Boyce04GAM.R, Boyce05GAM.R, Boyce06GAM.R, Boyce08GAM.R)
 colnames(BoyceGAM.R_Prob) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGAM.R_Prob, "BoyceGAM.R_Prob.csv")              
-BoyceGAM.R_Prob_mean <- apply(BoyceGAM.R_Prob, 2, mean)
-BoyceGAM.R_Prob_median <- apply(BoyceGAM.R_Prob, 2, median)
-  
-BoyceFunz02GAM.R <- lapply(Rsdm02GAM, BoyceGAMFav)
-BoyceFunz04GAM.R <- lapply(Rsdm04GAM, BoyceGAMFav)
-BoyceFunz05GAM.R <- lapply(Rsdm05GAM, BoyceGAMFav)
-BoyceFunz06GAM.R <- lapply(Rsdm06GAM, BoyceGAMFav)
-BoyceFunz08GAM.R <- lapply(Rsdm08GAM, BoyceGAMFav)
+
+BoyceFunz02GAM.R <- lapply(Rsdm02GAM, BoyceGAMFav02)
+BoyceFunz04GAM.R <- lapply(Rsdm04GAM, BoyceGAMFav04)
+BoyceFunz05GAM.R <- lapply(Rsdm05GAM, BoyceGAMFav05)
+BoyceFunz06GAM.R <- lapply(Rsdm06GAM, BoyceGAMFav06)
+BoyceFunz08GAM.R <- lapply(Rsdm08GAM, BoyceGAMFav08)
             
 
 Boyce02GAM.R <- data.frame(Boyce02=unlist(BoyceFunz02GAM.R))
@@ -1557,18 +1743,17 @@ Boyce08GAM.R <- data.frame(Boyce08=unlist(BoyceFunz08GAM.R))
 BoyceGAM.R_Fav <- cbind(Boyce02GAM.R, Boyce04GAM.R, Boyce05GAM.R, Boyce06GAM.R, Boyce08GAM.R)
 colnames(BoyceGAM.R_Fav) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGAM.R_Fav, "BoyceGAM.R_Fav.csv")              
-BoyceGAM.R_Fav_mean <- apply(BoyceGAM.R_Fav, 2, mean)
-BoyceGAM.R_Fav_median <- apply(BoyceGAM.R_Fav, 2, median)
+
 
               
 ###########              
  
               
-BoyceFunz02GBM.R <- lapply(Rsdm02GBM, BoyceGBM)
-BoyceFunz04GBM.R <- lapply(Rsdm04GBM, BoyceGBM)
-BoyceFunz05GBM.R <- lapply(Rsdm05GBM, BoyceGBM)
-BoyceFunz06GBM.R <- lapply(Rsdm06GBM, BoyceGBM)
-BoyceFunz08GBM.R <- lapply(Rsdm08GBM, BoyceGBM)
+BoyceFunz02GBM.R <- lapply(Rsdm02GBM, BoyceGBM02)
+BoyceFunz04GBM.R <- lapply(Rsdm04GBM, BoyceGBM04)
+BoyceFunz05GBM.R <- lapply(Rsdm05GBM, BoyceGBM05)
+BoyceFunz06GBM.R <- lapply(Rsdm06GBM, BoyceGBM06)
+BoyceFunz08GBM.R <- lapply(Rsdm08GBM, BoyceGBM08)
             
 
 Boyce02GBM.R <- data.frame(Boyce02=unlist(BoyceFunz02GBM.R))
@@ -1580,15 +1765,14 @@ Boyce08GBM.R <- data.frame(Boyce08=unlist(BoyceFunz08GBM.R))
 BoyceGBM.R_Prob <- cbind(Boyce02GBM.R, Boyce04GBM.R, Boyce05GBM.R, Boyce06GBM.R, Boyce08GBM.R)
 colnames(BoyceGBM.R_Prob) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGBM.R_Prob, "BoyceGBM.R_Prob.csv")
-BoyceGBM.R_Prob_mean <- apply(BoyceGBM.R_Prob, 2, mean)
-BoyceGBM.R_Prob_median <- apply(BoyceGBM.R_Prob, 2, median)
+
               
               
-BoyceFunz02GBM.R <- lapply(Rsdm02GBM, BoyceGBMFav)
-BoyceFunz04GBM.R <- lapply(Rsdm04GBM, BoyceGBMFav)
-BoyceFunz05GBM.R <- lapply(Rsdm05GBM, BoyceGBMFav)
-BoyceFunz06GBM.R <- lapply(Rsdm06GBM, BoyceGBMFav)
-BoyceFunz08GBM.R <- lapply(Rsdm08GBM, BoyceGBMFav)
+BoyceFunz02GBM.R <- lapply(Rsdm02GBM, BoyceGBMFav02)
+BoyceFunz04GBM.R <- lapply(Rsdm04GBM, BoyceGBMFav04)
+BoyceFunz05GBM.R <- lapply(Rsdm05GBM, BoyceGBMFav05)
+BoyceFunz06GBM.R <- lapply(Rsdm06GBM, BoyceGBMFav06)
+BoyceFunz08GBM.R <- lapply(Rsdm08GBM, BoyceGBMFav08)
             
 
 Boyce02GBM.R <- data.frame(Boyce02=unlist(BoyceFunz02GBM.R))
@@ -1600,8 +1784,7 @@ Boyce08GBM.R <- data.frame(Boyce08=unlist(BoyceFunz08GBM.R))
 BoyceGBM.R_Fav <- cbind(Boyce02GBM.R, Boyce04GBM.R, Boyce05GBM.R, Boyce06GBM.R, Boyce08GBM.R)
 colnames(BoyceGBM.R_Fav) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGBM.R_Fav, "BoyceGBM.R_Fav.csv")
-BoyceGBM.R_Fav_mean <- apply(BoyceGBM.R_Fav, 2, mean)
-BoyceGBM.R_Fav_median <- apply(BoyceGBM.R_Fav, 2, median)
+
                             
  ############## Stratified #######
  #################################
@@ -1677,7 +1860,7 @@ Ssdm.l.prev <- function(x){
   return(Outputs.l)
 }
 
-Ssdm.pGLM <- Ssdm.l.prev(Ssdm)
+Ssdm.pGLM <- Ssdm.l.prev(SsdmGLM)
 
 Ssdm02GLM <- Ssdm.pGLM[[1]]
 Ssdm04GLM <- Ssdm.pGLM[[2]]
@@ -1685,7 +1868,7 @@ Ssdm05GLM <- Ssdm.pGLM[[3]]
 Ssdm06GLM <- Ssdm.pGLM[[4]]
 Ssdm08GLM <- Ssdm.pGLM[[5]]
   
-Ssdm.pRF <- Ssdm.l.prev(Ssdm)
+Ssdm.pRF <- Ssdm.l.prev(SsdmRF)
 
 Ssdm02RF <- Ssdm.pRF[[1]]
 Ssdm04RF <- Ssdm.pRF[[2]]
@@ -1711,11 +1894,11 @@ Ssdm08GBM <- Ssdm.pGBM[[5]]
 
 
 
-BoyceFunz02GLM.S <- lapply(Ssdm02GLM, BoyceGLM)
-BoyceFunz04GLM.S <- lapply(Ssdm04GLM, BoyceGLM)
-BoyceFunz05GLM.S <- lapply(Ssdm05GLM, BoyceGLM)
-BoyceFunz06GLM.S <- lapply(Ssdm06GLM, BoyceGLM)
-BoyceFunz08GLM.S <- lapply(Ssdm08GLM, BoyceGLM)
+BoyceFunz02GLM.S <- lapply(Ssdm02GLM, BoyceGLM02)
+BoyceFunz04GLM.S <- lapply(Ssdm04GLM, BoyceGLM04)
+BoyceFunz05GLM.S <- lapply(Ssdm05GLM, BoyceGLM05)
+BoyceFunz06GLM.S <- lapply(Ssdm06GLM, BoyceGLM06)
+BoyceFunz08GLM.S <- lapply(Ssdm08GLM, BoyceGLM08)
             
 
 Boyce02GLM.S <- data.frame(Boyce02=unlist(BoyceFunz02GLM.S))
@@ -1727,15 +1910,14 @@ Boyce08GLM.S <- data.frame(Boyce08=unlist(BoyceFunz08GLM.S))
 BoyceGLM.S_Prob <- cbind(Boyce02GLM.S, Boyce04GLM.S, Boyce05GLM.S, Boyce06GLM.S, Boyce08GLM.S)
 colnames(BoyceGLM.S_Prob) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGLM.S_Prob, "BoyceGLM.S_Prob.csv")
-BoyceGLM.S_Prob_mean <- apply(BoyceGLM.S_Prob, 2, mean)
-BoyceGLM.S_Prob_median <- apply(BoyceGLM.S_Prob, 2, median)
+
   
 
-BoyceFunz02GLM.S <- lapply(Ssdm02GLM, BoyceGLMFav)
-BoyceFunz04GLM.S <- lapply(Ssdm04GLM, BoyceGLMFav)
-BoyceFunz05GLM.S <- lapply(Ssdm05GLM, BoyceGLMFav)
-BoyceFunz06GLM.S <- lapply(Ssdm06GLM, BoyceGLMFav)
-BoyceFunz08GLM.S <- lapply(Ssdm08GLM, BoyceGLMFav)
+BoyceFunz02GLM.S <- lapply(Ssdm02GLM, BoyceGLMFav02)
+BoyceFunz04GLM.S <- lapply(Ssdm04GLM, BoyceGLMFav04)
+BoyceFunz05GLM.S <- lapply(Ssdm05GLM, BoyceGLMFav05)
+BoyceFunz06GLM.S <- lapply(Ssdm06GLM, BoyceGLMFav06)
+BoyceFunz08GLM.S <- lapply(Ssdm08GLM, BoyceGLMFav08)
             
 
 Boyce02GLM.S <- data.frame(Boyce02=unlist(BoyceFunz02GLM.S))
@@ -1747,17 +1929,16 @@ Boyce08GLM.S <- data.frame(Boyce08=unlist(BoyceFunz08GLM.S))
 BoyceGLM.S_Fav <- cbind(Boyce02GLM.S, Boyce04GLM.S, Boyce05GLM.S, Boyce06GLM.S, Boyce08GLM.S)
 colnames(BoyceGLM.S_Fav) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGLM.S_Fav, "BoyceGLM.S_Fav.csv")
-BoyceGLM.S_Fav_mean <- apply(BoyceGLM.S_Fav, 2, mean)
-BoyceGLM.S_Fav_median <- apply(BoyceGLM.S_Fav, 2, median)
+
   
   
  ########### 
 
-BoyceFunz02RF.S <- lapply(Ssdm02RF, BoyceRF)
-BoyceFunz04RF.S <- lapply(Ssdm04RF, BoyceRF)
-BoyceFunz05RF.S <- lapply(Ssdm05RF, BoyceRF)
-BoyceFunz06RF.S <- lapply(Ssdm06RF, BoyceRF)
-BoyceFunz08RF.S <- lapply(Ssdm08RF, BoyceRF)
+BoyceFunz02RF.S <- lapply(Ssdm02RF, BoyceRF02)
+BoyceFunz04RF.S <- lapply(Ssdm04RF, BoyceRF04)
+BoyceFunz05RF.S <- lapply(Ssdm05RF, BoyceRF05)
+BoyceFunz06RF.S <- lapply(Ssdm06RF, BoyceRF06)
+BoyceFunz08RF.S <- lapply(Ssdm08RF, BoyceRF08)
             
 
 Boyce02RF.S <- data.frame(Boyce02=unlist(BoyceFunz02RF.S))
@@ -1769,14 +1950,13 @@ Boyce08RF.S <- data.frame(Boyce08=unlist(BoyceFunz08RF.S))
 BoyceRF.S_Prob <- cbind(Boyce02RF.S, Boyce04RF.S, Boyce05RF.S, Boyce06RF.S, Boyce08RF.S)
 colnames(BoyceRF.S_Prob) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceRF.S_Prob, "BoyceRF.S_Prob.csv")
-BoyceRF.S_Prob_mean <- apply(BoyceRF.S_Prob, 2, mean)
-BoyceRF.S_Prob_median <- apply(BoyceRF.S_Prob, 2, median)
+
   
-BoyceFunz02RF.S <- lapply(Ssdm02RF, BoyceRFFav)
-BoyceFunz04RF.S <- lapply(Ssdm04RF, BoyceRFFav)
-BoyceFunz05RF.S <- lapply(Ssdm05RF, BoyceRFFav)
-BoyceFunz06RF.S <- lapply(Ssdm06RF, BoyceRFFav)
-BoyceFunz08RF.S <- lapply(Ssdm08RF, BoyceRFFav)
+BoyceFunz02RF.S <- lapply(Ssdm02RF, BoyceRFFav02)
+BoyceFunz04RF.S <- lapply(Ssdm04RF, BoyceRFFav04)
+BoyceFunz05RF.S <- lapply(Ssdm05RF, BoyceRFFav05)
+BoyceFunz06RF.S <- lapply(Ssdm06RF, BoyceRFFav06)
+BoyceFunz08RF.S <- lapply(Ssdm08RF, BoyceRFFav08)
             
 
 Boyce02RF.S <- data.frame(Boyce02=unlist(BoyceFunz02RF.S))
@@ -1788,16 +1968,15 @@ Boyce08RF.S <- data.frame(Boyce08=unlist(BoyceFunz08RF.S))
 BoyceRF.S_Fav <- cbind(Boyce02RF.S, Boyce04RF.S, Boyce05RF.S, Boyce06RF.S, Boyce08RF.S)
 colnames(BoyceRF.S_Fav) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceRF.S_Fav, "BoyceRF.S_Fav.csv")
-BoyceRF.S_Fav_mean <- apply(BoyceRF.S_Fav, 2, mean)
-BoyceRF.S_Fav_median <- apply(BoyceRF.S_Fav, 2, median)
+
   
 ###############  
 
-BoyceFunz02GAM.S <- lapply(Ssdm02GAM, BoyceGAM)
-BoyceFunz04GAM.S <- lapply(Ssdm04GAM, BoyceGAM)
-BoyceFunz05GAM.S <- lapply(Ssdm05GAM, BoyceGAM)
-BoyceFunz06GAM.S <- lapply(Ssdm06GAM, BoyceGAM)
-BoyceFunz08GAM.S <- lapply(Ssdm08GAM, BoyceGAM)
+BoyceFunz02GAM.S <- lapply(Ssdm02GAM, BoyceGAM02)
+BoyceFunz04GAM.S <- lapply(Ssdm04GAM, BoyceGAM04)
+BoyceFunz05GAM.S <- lapply(Ssdm05GAM, BoyceGAM05)
+BoyceFunz06GAM.S <- lapply(Ssdm06GAM, BoyceGAM06)
+BoyceFunz08GAM.S <- lapply(Ssdm08GAM, BoyceGAM08)
             
 
 Boyce02GAM.S <- data.frame(Boyce02=unlist(BoyceFunz02GAM.S))
@@ -1809,15 +1988,13 @@ Boyce08GAM.S <- data.frame(Boyce08=unlist(BoyceFunz08GAM.S))
 BoyceGAM.S_Prob <- cbind(Boyce02GAM.S, Boyce04GAM.S, Boyce05GAM.S, Boyce06GAM.S, Boyce08GAM.S)
 colnames(BoyceGAM.S_Prob) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGAM.S_Prob, "BoyceGAM.S_Prob.csv")  
-BoyceGAM.S_Prob_mean <- apply(BoyceGAM.S_Prob, 2, mean)
-BoyceGAM.S_Prob_median <- apply(BoyceGAM.S_Prob, 2, median)
+
   
-  
-BoyceFunz02GAM.S <- lapply(Ssdm02GAM, BoyceGAMFav)
-BoyceFunz04GAM.S <- lapply(Ssdm04GAM, BoyceGAMFav)
-BoyceFunz05GAM.S <- lapply(Ssdm05GAM, BoyceGAMFav)
-BoyceFunz06GAM.S <- lapply(Ssdm06GAM, BoyceGAMFav)
-BoyceFunz08GAM.S <- lapply(Ssdm08GAM, BoyceGAMFav)
+BoyceFunz02GAM.S <- lapply(Ssdm02GAM, BoyceGAMFav02)
+BoyceFunz04GAM.S <- lapply(Ssdm04GAM, BoyceGAMFav04)
+BoyceFunz05GAM.S <- lapply(Ssdm05GAM, BoyceGAMFav05)
+BoyceFunz06GAM.S <- lapply(Ssdm06GAM, BoyceGAMFav06)
+BoyceFunz08GAM.S <- lapply(Ssdm08GAM, BoyceGAMFav08)
             
 
 Boyce02GAM.S <- data.frame(Boyce02=unlist(BoyceFunz02GAM.S))
@@ -1829,17 +2006,16 @@ Boyce08GAM.S <- data.frame(Boyce08=unlist(BoyceFunz08GAM.S))
 BoyceGAM.S_Fav <- cbind(Boyce02GAM.S, Boyce04GAM.S, Boyce05GAM.S, Boyce06GAM.S, Boyce08GAM.S)
 colnames(BoyceGAM.S_Fav) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGAM.S_Fav, "BoyceGAM.S_Fav.csv")  
-BoyceGAM.S_Fav_mean <- apply(BoyceGAM.S_Fav, 2, mean)
-BoyceGAM.S_Fav_median <- apply(BoyceGAM.S_Fav, 2, median)
+
   
  
 ################  
 
-BoyceFunz02GBM.S <- lapply(Ssdm02GBM, BoyceGBM)
-BoyceFunz04GBM.S <- lapply(Ssdm04GBM, BoyceGBM)
-BoyceFunz05GBM.S <- lapply(Ssdm05GBM, BoyceGBM)
-BoyceFunz06GBM.S <- lapply(Ssdm06GBM, BoyceGBM)
-BoyceFunz08GBM.S <- lapply(Ssdm08GBM, BoyceGBM)
+BoyceFunz02GBM.S <- lapply(Ssdm02GBM, BoyceGBM02)
+BoyceFunz04GBM.S <- lapply(Ssdm04GBM, BoyceGBM04)
+BoyceFunz05GBM.S <- lapply(Ssdm05GBM, BoyceGBM05)
+BoyceFunz06GBM.S <- lapply(Ssdm06GBM, BoyceGBM06)
+BoyceFunz08GBM.S <- lapply(Ssdm08GBM, BoyceGBM08)
             
 
 Boyce02GBM.S <- data.frame(Boyce02=unlist(BoyceFunz02GBM.S))
@@ -1851,15 +2027,14 @@ Boyce08GBM.S <- data.frame(Boyce08=unlist(BoyceFunz08GBM.S))
 BoyceGBM.S_Prob <- cbind(Boyce02GBM.S, Boyce04GBM.S, Boyce05GBM.S, Boyce06GBM.S, Boyce08GBM.S)
 colnames(BoyceGBM.S_Prob) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGAM.S_Prob, "BoyceGAM.S_Prob.csv")  
-BoyceGBM.S_Prob_mean <- apply(BoyceGBM.S_Prob, 2, mean)
-BoyceGBM.S_Prob_median <- apply(BoyceGBM.S_Prob, 2, median)
 
 
-BoyceFunz02GBM.S <- lapply(Ssdm02GBM, BoyceGBMFav)
-BoyceFunz04GBM.S <- lapply(Ssdm04GBM, BoyceGBMFav)
-BoyceFunz05GBM.S <- lapply(Ssdm05GBM, BoyceGBMFav)
-BoyceFunz06GBM.S <- lapply(Ssdm06GBM, BoyceGBMFav)
-BoyceFunz08GBM.S <- lapply(Ssdm08GBM, BoyceGBMFav)
+
+BoyceFunz02GBM.S <- lapply(Ssdm02GBM, BoyceGBMFav02)
+BoyceFunz04GBM.S <- lapply(Ssdm04GBM, BoyceGBMFav04)
+BoyceFunz05GBM.S <- lapply(Ssdm05GBM, BoyceGBMFav05)
+BoyceFunz06GBM.S <- lapply(Ssdm06GBM, BoyceGBMFav06)
+BoyceFunz08GBM.S <- lapply(Ssdm08GBM, BoyceGBMFav08)
             
 
 Boyce02GBM.S <- data.frame(Boyce02=unlist(BoyceFunz02GBM.S))
@@ -1871,9 +2046,7 @@ Boyce08GBM.S <- data.frame(Boyce08=unlist(BoyceFunz08GBM.S))
 BoyceGBM.S_Fav <- cbind(Boyce02GBM.S, Boyce04GBM.S, Boyce05GBM.S, Boyce06GBM.S, Boyce08GBM.S)
 colnames(BoyceGBM.S_Fav) <- c("0.2","0.4","0.5","0.6","0.8")
 write.csv(BoyceGAM.S_Fav, "BoyceGAM.S_Fav.csv")  
-BoyceGBM.S_Fav_mean <- apply(BoyceGBM.S_Fav, 2, mean)
-BoyceGBM.S_Fav_median <- apply(BoyceGBM.S_Fav, 2, median)  
-  
+ 
   
  ################# boxplots ################# 
    
@@ -1989,7 +2162,7 @@ boyceGBMR_tot$sampling <- "Random sampling"
 boyceGBMS_tot$sampling <- "Stratified sampling"
 rb.boyceGBM <- rbind(boyceGBMR_tot, boyceGBMS_tot)  
  
-  gam <- ggplot(rb.boyceGAM, aes(prevalence, values, fill = pred))+
+ gam <- ggplot(rb.boyceGAM, aes(prevalence, values, fill = pred))+
   geom_half_violin(alpha = 0.6, side = "l")+
   geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
   facet_wrap(~ sampling, nrow = 1) +
@@ -2000,21 +2173,21 @@ rb.boyceGBM <- rbind(boyceGBMR_tot, boyceGBMS_tot)
   theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
         legend.position = "bottom",  
         plot.title = element_text(size=15,face = 'bold'),
-        legend.title=element_text(size=12,face = 'bold'),
+        legend.title=element_text(size=16,face = 'bold'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
-        axis.title.x = element_text(size=12,face = 'bold'),
-        axis.text.x = element_text(size = 10, face = 'bold'),
-        axis.title.y = element_text(size=12,face = 'bold'),
-        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.title.x = element_text(size=15,face = 'bold'),
+        axis.text.x = element_text(size = 13, face = 'bold'),
+        axis.title.y = element_text(size=15,face = 'bold'),
+        axis.text.y = element_text(size = 13, face = 'bold'),
         axis.ticks.y=element_blank(),
-        text = element_text(size=12), 
-        strip.text = element_text(size=12),
-        legend.text = element_text(size=12,angle = 0), 
-        legend.key.size = unit(.7, 'cm'))    
+        text = element_text(size=16), 
+        strip.text = element_text(size= 14,face = 'bold', colour = "black"),
+        legend.text = element_text(size=16,angle = 0), 
+        legend.key.size = unit(1.2, 'cm'))   
 
-  glm <- ggplot(rb.boyceGLM, aes(prevalence, values, fill = pred))+
+glm <- ggplot(rb.boyceGLM, aes(prevalence, values, fill = pred))+
   geom_half_violin(alpha = 0.6, side = "l")+
   geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
   facet_wrap(~ sampling, nrow = 1) +
@@ -2025,22 +2198,22 @@ rb.boyceGBM <- rbind(boyceGBMR_tot, boyceGBMS_tot)
   theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
         legend.position = "bottom",  
         plot.title = element_text(size=15,face = 'bold'),
-        legend.title=element_text(size=12,face = 'bold'),
+        legend.title=element_text(size=16,face = 'bold'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
-        axis.title.x = element_text(size=12,face = 'bold'),
-        axis.text.x = element_text(size = 10, face = 'bold'),
-        axis.title.y = element_text(size=12,face = 'bold'),
-        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.title.x = element_text(size=15,face = 'bold'),
+        axis.text.x = element_text(size = 13, face = 'bold'),
+        axis.title.y = element_text(size=15,face = 'bold'),
+        axis.text.y = element_text(size = 13, face = 'bold'),
         axis.ticks.y=element_blank(),
-        text = element_text(size=12), 
-        strip.text = element_text(size=12),
-        legend.text = element_text(size=12,angle = 0), 
-        legend.key.size = unit(.7, 'cm'))    
+        text = element_text(size=16), 
+        strip.text = element_text(size= 14,face = 'bold', colour = "black"),
+        legend.text = element_text(size=16,angle = 0), 
+        legend.key.size = unit(1.2, 'cm'))    
 
-  
- rf <- ggplot(rb.boyceRF, aes(prevalence, values, fill = pred))+
+
+rf <- ggplot(rb.boyceRF, aes(prevalence, values, fill = pred))+
   geom_half_violin(alpha = 0.6, side = "l")+
   geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
   facet_wrap(~ sampling, nrow = 1) +
@@ -2051,22 +2224,22 @@ rb.boyceGBM <- rbind(boyceGBMR_tot, boyceGBMS_tot)
   theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
         legend.position = "bottom",  
         plot.title = element_text(size=15,face = 'bold'),
-        legend.title=element_text(size=12,face = 'bold'),
+        legend.title=element_text(size=16,face = 'bold'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
-        axis.title.x = element_text(size=12,face = 'bold'),
-        axis.text.x = element_text(size = 10, face = 'bold'),
-        axis.title.y = element_text(size=12,face = 'bold'),
-        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.title.x = element_text(size=15,face = 'bold'),
+        axis.text.x = element_text(size = 13, face = 'bold'),
+        axis.title.y = element_text(size=15,face = 'bold'),
+        axis.text.y = element_text(size = 13, face = 'bold'),
         axis.ticks.y=element_blank(),
-        text = element_text(size=12), 
-        strip.text = element_text(size=12),
-        legend.text = element_text(size=12,angle = 0), 
-        legend.key.size = unit(.7, 'cm'))    
- 
-  
-  gbm <- ggplot(rb.boyceGBM, aes(prevalence, values, fill = pred))+
+        text = element_text(size=16), 
+        strip.text = element_text(size=14,face = 'bold', colour = "black"),
+        legend.text = element_text(size=16,angle = 0), 
+        legend.key.size = unit(1.2, 'cm'))    
+
+
+gbm <- ggplot(rb.boyceGBM, aes(prevalence, values, fill = pred))+
   geom_half_violin(alpha = 0.6, side = "l")+
   geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
   facet_wrap(~ sampling, nrow = 1) +
@@ -2077,26 +2250,25 @@ rb.boyceGBM <- rbind(boyceGBMR_tot, boyceGBMS_tot)
   theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
         legend.position = "bottom",  
         plot.title = element_text(size=15,face = 'bold'),
-        legend.title=element_text(size=12,face = 'bold'),
+        legend.title=element_text(size=16,face = 'bold'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
-        axis.title.x = element_text(size=12,face = 'bold'),
-        axis.text.x = element_text(size = 10, face = 'bold'),
-        axis.title.y = element_text(size=12,face = 'bold'),
-        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.title.x = element_text(size=15,face = 'bold'),
+        axis.text.x = element_text(size = 13, face = 'bold'),
+        axis.title.y = element_text(size=15,face = 'bold'),
+        axis.text.y = element_text(size = 13, face = 'bold'),
         axis.ticks.y=element_blank(),
-        text = element_text(size=12), 
-        strip.text = element_text(size=12),
-        legend.text = element_text(size=12,angle = 0), 
-        legend.key.size = unit(.7, 'cm'))    
+        text = element_text(size=16),
+        strip.text = element_text(size=14,face = 'bold', colour = "black"),
+        legend.text = element_text(size=16,angle = 0), 
+        legend.key.size = unit(1.2, 'cm'))    
 
 
-  f <- glm + gam + rf + gbm + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  
-  ggsave(plot = f,
+f <- glm + gam + rf + gbm + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+
+ggsave(plot = f,
        filename = "f.jpeg",
        width = 18,
        height = 10,
-       dpi = 600) 
-  
+       dpi = 600)
