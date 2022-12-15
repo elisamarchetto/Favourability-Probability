@@ -1982,5 +1982,1090 @@ dpi = 600)
   
 ########################## Kruskal-Wallis Test and Dunn's Test #############################
 ############################################################################################                  
+
+ ########### Kruskal_Wallis Test #########
                   
+ #########  GLM  ##########
+  listProbGLM <- function(x) {
+  stackProb <- stack(x$Raster$pres_P)
   
+  return(stackProb)
+}
+
+listProb02GLM <- lapply(Rsdm02GLM, listProbGLM)
+stackprob02GLM <- stack(listProb02GLM)
+fav0.2GLM <- calc(stackprob02GLM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GLM <- as.data.frame(stackprob02GLM)%>%drop_na() 
+df_prob02GLM.R <- data.frame(values = unlist(df_prob02GLM))
+df_fav02GLM <- as.data.frame(fav0.2GLM )%>%drop_na() 
+df_fav02GLM.R <- data.frame(values = unlist(df_fav02GLM))
+
+
+listProb04GLM <- lapply(Rsdm04GLM, listProbGLM)
+stackprob04GLM <- stack(listProb04GLM)
+fav0.4GLM <- calc(stackprob04GLM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GLM <- as.data.frame(stackprob04GLM)%>%drop_na() 
+df_prob04GLM.R <- data.frame(values = unlist(df_prob04GLM))
+df_fav04GLM <- as.data.frame(fav0.4GLM)%>%drop_na() 
+df_fav04GLM.R <- data.frame(values = unlist(df_fav04GLM))
+
+listProb05GLM <- lapply(Rsdm05GLM, listProbGLM)
+stackprob05GLM <- stack(listProb05GLM)
+fav0.5GLM <- calc(stackprob05GLM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GLM <- as.data.frame(stackprob05GLM)%>%drop_na() 
+df_prob05GLM.R <- data.frame(values = unlist(df_prob05GLM))
+df_fav05GLM <- as.data.frame(fav0.5GLM)%>%drop_na() 
+df_fav05GLM.R <- data.frame(values = unlist(df_fav05GLM))
+
+
+listProb06GLM <- lapply(Rsdm06GLM, listProbGLM)
+stackprob06GLM <- stack(listProb06GLM)
+fav0.6GLM <- calc(stackprob06GLM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GLM <- as.data.frame(stackprob06GLM)%>%drop_na() 
+df_prob06GLM.R <- data.frame(values = unlist(df_prob06GLM))
+df_fav06GLM <- as.data.frame(fav0.6GLM)%>%drop_na() 
+df_fav06GLM.R <- data.frame(values = unlist(df_fav06GLM))
+
+
+listProb08GLM <- lapply(Rsdm08GLM, listProbGLM)
+stackprob08GLM <- stack(listProb08GLM)
+fav0.8GLM <- calc(stackprob08GLM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GLM <- as.data.frame(stackprob08GLM)%>%drop_na() 
+df_prob08GLM.R <- data.frame(values = unlist(df_prob08GLM))
+df_fav08GLM <- as.data.frame(fav0.8GLM)%>%drop_na() 
+df_fav08GLM.R <- data.frame(values = unlist(df_fav08GLM))
+
+# Stratified
+listProb02GLM <- lapply(Ssdm02GLM, listProbGLM)
+stackprob02GLM <- stack(listProb02GLM)
+fav0.2GLM <- calc(stackprob02GLM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GLM <- as.data.frame(stackprob02GLM)%>%drop_na() 
+df_prob02GLM.S <- data.frame(values = unlist(df_prob02GLM))
+df_fav02GLM <- as.data.frame(fav0.2GLM)%>%drop_na() 
+df_fav02GLM.S <- data.frame(values = unlist(df_fav02GLM))
+
+                  ####### GAM
+                 
+                
+
+listProbGAM <- function(x) {
+  stackProb <- stack(x$Raster$df.prediction.Pred)
+  
+  return(stackProb)
+}
+
+
+# Random 
+
+listProb02GAM <- lapply(Rsdm02GAM, listProbGAM)
+stackprob02GAM <- stack(listProb02GAM)
+fav0.2GAM <- calc(stackprob02GAM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GAM <- as.data.frame(stackprob02GAM)%>%drop_na() 
+df_prob02GAM.R <- data.frame(values = unlist(df_prob02GAM))
+df_fav02GAM <- as.data.frame(fav0.2GAM)%>%drop_na()
+df_fav02GAM.R <- data.frame(values = unlist(df_fav02GAM))
+
+
+listProb04GAM <- lapply(Rsdm04GAM, listProbGAM)
+stackprob04GAM <- stack(listProb04GAM)
+fav0.4GAM <- calc(stackprob04GAM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GAM <- as.data.frame(stackprob04GAM)%>%drop_na() 
+df_prob04GAM.R <- data.frame(values = unlist(df_prob04GAM))
+df_fav04GAM <- as.data.frame(fav0.4GAM)%>%drop_na()
+df_fav04GAM.R <- data.frame(values = unlist(df_fav04GAM))
+
+listProb05GAM <- lapply(Rsdm05GAM, listProbGAM)
+stackprob05GAM <- stack(listProb05GAM)
+fav0.5GAM <- calc(stackprob05GAM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GAM <- as.data.frame(stackprob05GAM)%>%drop_na() 
+df_prob05GAM.R <- data.frame(values = unlist(df_prob05GAM))
+df_fav05GAM <- as.data.frame(fav0.5GAM)%>%drop_na()
+df_fav05GAM.R <- data.frame(values = unlist(df_fav05GAM))
+
+
+listProb06GAM <- lapply(Rsdm06GAM, listProbGAM)
+stackprob06GAM <- stack(listProb06GAM)
+fav0.6GAM <- calc(stackprob06GAM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GAM <- as.data.frame(stackprob06GAM)%>%drop_na() 
+df_prob06GAM.R <- data.frame(values = unlist(df_prob06GAM))
+df_fav06GAM <- as.data.frame(fav0.6GAM)%>%drop_na()
+df_fav06GAM.R <- data.frame(values = unlist(df_fav06GAM))
+
+
+listProb08GAM <- lapply(Rsdm08GAM, listProbGAM)
+stackprob08GAM <- stack(listProb08GAM)
+fav0.8GAM <- calc(stackprob08GAM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GAM <- as.data.frame(stackprob08GAM)%>%drop_na() 
+df_prob08GAM.R <- data.frame(values = unlist(df_prob08GAM))
+df_fav08GAM <- as.data.frame(fav0.8GAM)%>%drop_na()
+df_fav08GAM.R <- data.frame(values = unlist(df_fav08GAM))
+
+# Stratified
+
+listProb02GAM <- lapply(Ssdm02GAM, listProbGAM)
+stackprob02GAM <- stack(listProb02GAM)
+fav0.2GAM <- calc(stackprob02GAM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GAM <- as.data.frame(stackprob02GAM)%>%drop_na() 
+df_prob02GAM.S <- data.frame(values = unlist(df_prob02GAM))
+df_fav02GAM <- as.data.frame(fav0.2GAM)%>%drop_na()
+df_fav02GAM.S <- data.frame(values = unlist(df_fav02GAM))
+
+
+listProb04GAM <- lapply(Ssdm04GAM, listProbGAM)
+stackprob04GAM <- stack(listProb04GAM)
+fav0.4GAM <- calc(stackprob04GAM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GAM <- as.data.frame(stackprob04GAM)%>%drop_na() 
+df_prob04GAM.S <- data.frame(values = unlist(df_prob04GAM))
+df_fav04GAM <- as.data.frame(fav0.4GAM)%>%drop_na()
+df_fav04GAM.S <- data.frame(values = unlist(df_fav04GAM))
+
+listProb05GAM <- lapply(Ssdm05GAM, listProbGAM)
+stackprob05GAM <- stack(listProb05GAM)
+fav0.5GAM <- calc(stackprob05GAM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GAM <- as.data.frame(stackprob05GAM)%>%drop_na() 
+df_prob05GAM.S <- data.frame(values = unlist(df_prob05GAM))
+df_fav05GAM <- as.data.frame(fav0.5GAM)%>%drop_na()
+df_fav05GAM.S <- data.frame(values = unlist(df_fav05GAM))
+
+
+listProb06GAM <- lapply(Ssdm06GAM, listProbGAM)
+stackprob06GAM <- stack(listProb06GAM)
+fav0.6GAM <- calc(stackprob06GAM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GAM <- as.data.frame(stackprob06GAM)%>%drop_na() 
+df_prob06GAM.S <- data.frame(values = unlist(df_prob06GAM))
+df_fav06GAM <- as.data.frame(fav0.6GAM)%>%drop_na()
+df_fav06GAM.S <- data.frame(values = unlist(df_fav06GAM))
+
+
+listProb08GAM <- lapply(Ssdm08GAM, listProbGAM)
+stackprob08GAM <- stack(listProb08GAM)
+fav0.8GAM <- calc(stackprob08GAM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GAM <- as.data.frame(stackprob08GAM)%>%drop_na() 
+df_prob08GAM.S <- data.frame(values = unlist(df_prob08GAM))
+df_fav08GAM <- as.data.frame(fav0.8GAM)%>%drop_na()
+df_fav08GAM.S <- data.frame(values = unlist(df_fav08GAM))
+
+###### #######
+
+df_fav08GAM.R$prevalence <- "F0.8"
+df_fav06GAM.R$prevalence <- "F0.6"
+df_fav05GAM.R$prevalence <- "F0.5"
+df_fav04GAM.R$prevalence <- "F0.4"
+df_fav02GAM.R$prevalence <- "F0.2"
+
+df_favGAM.R <- as.data.frame(rbind(df_fav02GAM.R, df_fav04GAM.R, df_fav05GAM.R, df_fav06GAM.R, df_fav08GAM.R))
+
+
+
+df_prob08GAM.R$prevalence <- "P0.8"
+df_prob06GAM.R$prevalence <- "P0.6"
+df_prob05GAM.R$prevalence <- "P0.5"
+df_prob04GAM.R$prevalence <- "P0.4"
+df_prob02GAM.R$prevalence <- "P0.2"
+
+df_probGAM.R <- as.data.frame(rbind(df_prob02GAM.R, df_prob04GAM.R, df_prob05GAM.R, df_prob06GAM.R, df_prob08GAM.R))
+
+
+
+
+
+
+Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favGAM.R)
+
+
+Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probGAM.R)
+
+
+Kruscal_prevR_RF <- data.frame(Fav=Kruskal_F.tot$p.value, Prob=Kruskal_P.tot$p.value)
+write.csv(Kruscal_prevR_RF,"Kruscal_prevRandom_GAM.csv")
+
+
+df_fav08GAM.S$prevalence <- "F0.8"
+df_fav06GAM.S$prevalence <- "F0.6"
+df_fav05GAM.S$prevalence <- "F0.5"
+df_fav04GAM.S$prevalence <- "F0.4"
+df_fav02GAM.S$prevalence <- "F0.2"
+
+df_favGAM.S <- as.data.frame(rbind(df_fav02GAM.S, df_fav04GAM.S, df_fav05GAM.S, df_fav06GAM.S, df_fav08GAM.S))
+
+
+
+df_prob08GAM.S$prevalence <- "P0.8"
+df_prob06GAM.S$prevalence <- "P0.6"
+df_prob05GAM.S$prevalence <- "P0.5"
+df_prob04GAM.S$prevalence <- "P0.4"
+df_prob02GAM.S$prevalence <- "P0.2"
+
+df_probGAM.S <- as.data.frame(rbind(df_prob02GAM.S, df_prob04GAM.S, df_prob05GAM.S, df_prob06GAM.S, df_prob08GAM.S)) 
+                  
+ Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favGAM.S)
+
+
+Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probGAM.S)
+
+
+Kruscal_prevS_GAM <- data.frame(Fav=Kruskal_F.tot$p.value, Prob=Kruskal_P.tot$p.value)
+write.csv(Kruscal_prevS_GAM,"Kruscal_prevStratified_GAM.csv")  
+                  
+                  
+####### GBM
+                  
+listProbGBM <- function(x) {
+  stackProb <- stack(x$Raster$df.prediction.Pred)
+  
+  return(stackProb)
+}
+
+
+# Random 
+
+listProb02GBM <- lapply(Rsdm02GBM, listProbGBM)
+stackprob02GBM <- stack(listProb02GBM)
+fav0.2GBM <- calc(stackprob02GBM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GBM <- as.data.frame(stackprob02GBM)%>%drop_na() 
+df_prob02GBM.R <- data.frame(values = unlist(df_prob02GBM))
+df_fav02GBM <- as.data.frame(fav0.2GBM)%>%drop_na()
+df_fav02GBM.R <- data.frame(values = unlist(df_fav02GBM))
+
+
+listProb04GBM <- lapply(Rsdm04GBM, listProbGBM)
+stackprob04GBM <- stack(listProb04GBM)
+fav0.4GBM <- calc(stackprob04GBM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GBM <- as.data.frame(stackprob04GBM)%>%drop_na() 
+df_prob04GBM.R <- data.frame(values = unlist(df_prob04GBM))
+df_fav04GBM <- as.data.frame(fav0.4GBM)%>%drop_na()
+df_fav04GBM.R <- data.frame(values = unlist(df_fav04GBM))
+
+listProb05GBM <- lapply(Rsdm05GBM, listProbGBM)
+stackprob05GBM <- stack(listProb05GBM)
+fav0.5GBM <- calc(stackprob05GBM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GBM <- as.data.frame(stackprob05GBM)%>%drop_na() 
+df_prob05GBM.R <- data.frame(values = unlist(df_prob05GBM))
+df_fav05GBM <- as.data.frame(fav0.5GBM)%>%drop_na()
+df_fav05GBM.R <- data.frame(values = unlist(df_fav05GBM))
+
+
+listProb06GBM <- lapply(Rsdm06GBM, listProbGBM)
+stackprob06GBM <- stack(listProb06GBM)
+fav0.6GBM <- calc(stackprob06GBM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GBM <- as.data.frame(stackprob06GBM)%>%drop_na() 
+df_prob06GBM.R <- data.frame(values = unlist(df_prob06GBM))
+df_fav06GBM <- as.data.frame(fav0.6GBM)%>%drop_na()
+df_fav06GBM.R <- data.frame(values = unlist(df_fav06GBM))
+
+
+listProb08GBM <- lapply(Rsdm08GBM, listProbGBM)
+stackprob08GBM <- stack(listProb08GBM)
+fav0.8GBM <- calc(stackprob08GBM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GBM <- as.data.frame(stackprob08GBM)%>%drop_na() 
+df_prob08GBM.R <- data.frame(values = unlist(df_prob08GBM))
+df_fav08GBM <- as.data.frame(fav0.8GBM)%>%drop_na()
+df_fav08GBM.R <- data.frame(values = unlist(df_fav08GBM))
+
+# Stratified
+
+listProb02GBM <- lapply(Ssdm02GBM, listProbGBM)
+stackprob02GBM <- stack(listProb02GBM)
+fav0.2GBM <- calc(stackprob02GBM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GBM <- as.data.frame(stackprob02GBM)%>%drop_na() 
+df_prob02GBM.S <- data.frame(values = unlist(df_prob02GBM))
+df_fav02GBM <- as.data.frame(fav0.2GBM)%>%drop_na()
+df_fav02GBM.S <- data.frame(values = unlist(df_fav02GBM))
+
+
+listProb04GBM <- lapply(Ssdm04GBM, listProbGBM)
+stackprob04GBM <- stack(listProb04GBM)
+fav0.4GBM <- calc(stackprob04GBM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GBM <- as.data.frame(stackprob04GBM)%>%drop_na() 
+df_prob04GBM.S <- data.frame(values = unlist(df_prob04GBM))
+df_fav04GBM <- as.data.frame(fav0.4GBM)%>%drop_na()
+df_fav04GBM.S <- data.frame(values = unlist(df_fav04GBM))
+
+listProb05GBM <- lapply(Ssdm05GBM, listProbGBM)
+stackprob05GBM <- stack(listProb05GBM)
+fav0.5GBM <- calc(stackprob05GBM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GBM <- as.data.frame(stackprob05GBM)%>%drop_na() 
+df_prob05GBM.S <- data.frame(values = unlist(df_prob05GBM))
+df_fav05GBM <- as.data.frame(fav0.5GBM)%>%drop_na()
+df_fav05GBM.S <- data.frame(values = unlist(df_fav05GBM))
+
+
+listProb06GBM <- lapply(Ssdm06GBM, listProbGBM)
+stackprob06GBM <- stack(listProb06GBM)
+fav0.6GBM <- calc(stackprob06GBM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GBM <- as.data.frame(stackprob06GBM)%>%drop_na() 
+df_prob06GBM.S <- data.frame(values = unlist(df_prob06GBM))
+df_fav06GBM <- as.data.frame(fav0.6GBM)%>%drop_na()
+df_fav06GBM.S <- data.frame(values = unlist(df_fav06GBM))
+
+
+listProb08GBM <- lapply(Ssdm08GBM, listProbGBM)
+stackprob08GBM <- stack(listProb08GBM)
+fav0.8GBM <- calc(stackprob08GBM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GBM <- as.data.frame(stackprob08GBM)%>%drop_na() 
+df_prob08GBM.S <- data.frame(values = unlist(df_prob08GBM))
+df_fav08GBM <- as.data.frame(fav0.8GBM)%>%drop_na()
+df_fav08GBM.S <- data.frame(values = unlist(df_fav08GBM))
+
+###### #######
+
+df_fav08GBM.R$prevalence <- "F0.8"
+df_fav06GBM.R$prevalence <- "F0.6"
+df_fav05GBM.R$prevalence <- "F0.5"
+df_fav04GBM.R$prevalence <- "F0.4"
+df_fav02GBM.R$prevalence <- "F0.2"
+
+df_favGBM.R <- as.data.frame(rbind(df_fav02GBM.R, df_fav04GBM.R, df_fav05GBM.R, df_fav06GBM.R, df_fav08GBM.R))
+
+
+
+df_prob08GBM.R$prevalence <- "P0.8"
+df_prob06GBM.R$prevalence <- "P0.6"
+df_prob05GBM.R$prevalence <- "P0.5"
+df_prob04GBM.R$prevalence <- "P0.4"
+df_prob02GBM.R$prevalence <- "P0.2"
+
+df_probGBM.R <- as.data.frame(rbind(df_prob02GBM.R, df_prob04GBM.R, df_prob05GBM.R, df_prob06GBM.R, df_prob08GBM.R))
+
+
+
+
+
+
+Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favGBM.R)
+
+
+Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probGBM.R)
+
+
+Kruscal_prevR_GBM <- data.frame(Fav=Kruskal_F.tot$p.value, Prob=Kruskal_P.tot$p.value)
+write.csv(Kruscal_prevR_GBM,"Kruscal_prevRandom_GBM.csv")
+
+
+df_fav08GBM.S$prevalence <- "F0.8"
+df_fav06GBM.S$prevalence <- "F0.6"
+df_fav05GBM.S$prevalence <- "F0.5"
+df_fav04GBM.S$prevalence <- "F0.4"
+df_fav02GBM.S$prevalence <- "F0.2"
+
+df_favGBM.S <- as.data.frame(rbind(df_fav02GBM.S, df_fav04GBM.S, df_fav05GBM.S, df_fav06GBM.S, df_fav08GBM.S))
+
+
+
+df_prob08GBM.S$prevalence <- "P0.8"
+df_prob06GBM.S$prevalence <- "P0.6"
+df_prob05GBM.S$prevalence <- "P0.5"
+df_prob04GBM.S$prevalence <- "P0.4"
+df_prob02GBM.S$prevalence <- "P0.2"
+
+df_probGBM.S <- as.data.frame(rbind(df_prob02GBM.S, df_prob04GBM.S, df_prob05GBM.S, df_prob06GBM.S, df_prob08GBM.S)) 
+                  
+ Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favGBM.S)
+
+
+Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probGBM.S)
+
+
+Kruscal_prevS_GBM <- data.frame(Fav=Kruskal_F.tot$p.value, Prob=Kruskal_P.tot$p.value)
+write.csv(Kruscal_prevS_GBM,"Kruscal_prevStratified_GBM.csv")                   
+
+                  
+####################################################                  
+###################### Dunn ########################
+#################################################### 
+  
+####### GLM 
+              listProbGLM <- function(x) {
+  stackProb <- stack(x$Raster$pres_P)
+  
+  return(stackProb)
+}
+
+listProb02GLM <- lapply(Rsdm02GLM, listProbGLM)
+stackprob02GLM <- stack(listProb02GLM)
+fav0.2GLM <- calc(stackprob02GLM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GLM <- as.data.frame(stackprob02GLM)%>%drop_na() 
+df_prob02GLM.R <- data.frame(p02 = unlist(df_prob02GLM))
+df_fav02GLM <- as.data.frame(fav0.2GLM )%>%drop_na() 
+df_fav02GLM.R <- data.frame(f02 = unlist(df_fav02GLM))
+
+
+listProb04GLM <- lapply(Rsdm04GLM, listProbGLM)
+stackprob04GLM <- stack(listProb04GLM)
+fav0.4GLM <- calc(stackprob04GLM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GLM <- as.data.frame(stackprob04GLM)%>%drop_na() 
+df_prob04GLM.R <- data.frame(p04 = unlist(df_prob04GLM))
+df_fav04GLM <- as.data.frame(fav0.4GLM)%>%drop_na() 
+df_fav04GLM.R <- data.frame(f04 = unlist(df_fav04GLM))
+
+listProb05GLM <- lapply(Rsdm05GLM, listProbGLM)
+stackprob05GLM <- stack(listProb05GLM)
+fav0.5GLM <- calc(stackprob05GLM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GLM <- as.data.frame(stackprob05GLM)%>%drop_na() 
+df_prob05GLM.R <- data.frame(p05 = unlist(df_prob05GLM))
+df_fav05GLM <- as.data.frame(fav0.5GLM)%>%drop_na() 
+df_fav05GLM.R <- data.frame(f05 = unlist(df_fav05GLM))
+
+
+listProb06GLM <- lapply(Rsdm06GLM, listProbGLM)
+stackprob06GLM <- stack(listProb06GLM)
+fav0.6GLM <- calc(stackprob06GLM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GLM <- as.data.frame(stackprob06GLM)%>%drop_na() 
+df_prob06GLM.R <- data.frame(p06 = unlist(df_prob06GLM))
+df_fav06GLM <- as.data.frame(fav0.6GLM)%>%drop_na() 
+df_fav06GLM.R <- data.frame(f06 = unlist(df_fav06GLM))
+
+
+listProb08GLM <- lapply(Rsdm08GLM, listProbGLM)
+stackprob08GLM <- stack(listProb08GLM)
+fav0.8GLM <- calc(stackprob08GLM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GLM <- as.data.frame(stackprob08GLM)%>%drop_na() 
+df_prob08GLM.R <- data.frame(p08 = unlist(df_prob08GLM))
+df_fav08GLM <- as.data.frame(fav0.8GLM)%>%drop_na() 
+df_fav08GLM.R <- data.frame(f08 = unlist(df_fav08GLM))
+
+# Stratified
+listProb02GLM <- lapply(Ssdm02GLM, listProbGLM)
+stackprob02GLM <- stack(listProb02GLM)
+fav0.2GLM <- calc(stackprob02GLM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GLM <- as.data.frame(stackprob02GLM)%>%drop_na() 
+df_prob02GLM.S <- data.frame(p02 = unlist(df_prob02GLM))
+df_fav02GLM <- as.data.frame(fav0.2GLM)%>%drop_na() 
+df_fav02GLM.S <- data.frame(f02 = unlist(df_fav02GLM))
+
+
+listProb04GLM <- lapply(Ssdm04GLM, listProbGLM)
+stackprob04GLM <- stack(listProb04GLM)
+fav0.4GLM <- calc(stackprob04GLM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GLM <- as.data.frame(stackprob04GLM)%>%drop_na() 
+df_prob04GLM.S <- data.frame(p04 = unlist(df_prob04GLM))
+df_fav04GLM <- as.data.frame(fav0.4GLM)%>%drop_na() 
+df_fav04GLM.S <- data.frame(f04 = unlist(df_fav04GLM))
+
+listProb05GLM <- lapply(Ssdm05GLM, listProbGLM)
+stackprob05GLM <- stack(listProb05GLM)
+fav0.5GLM <- calc(stackprob05GLM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GLM <- as.data.frame(stackprob05GLM)%>%drop_na() 
+df_prob05GLM.S <- data.frame(p05 = unlist(df_prob05GLM))
+df_fav05GLM <- as.data.frame(fav0.5GLM)%>%drop_na() 
+df_fav05GLM.S <- data.frame(f05 = unlist(df_fav05GLM))
+
+
+listProb06GLM <- lapply(Ssdm06GLM, listProbGLM)
+stackprob06GLM <- stack(listProb06GLM)
+fav0.6GLM <- calc(stackprob06GLM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GLM <- as.data.frame(stackprob06GLM)%>%drop_na() 
+df_prob06GLM.S <- data.frame(p06 = unlist(df_prob06GLM))
+df_fav06GLM <- as.data.frame(fav0.6GLM)%>%drop_na() 
+df_fav06GLM.S <- data.frame(f06 = unlist(df_fav06GLM))
+
+
+listProb08GLM <- lapply(Ssdm08GLM, listProbGLM)
+stackprob08GLM <- stack(listProb08GLM)
+fav0.8GLM <- calc(stackprob08GLM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GLM <- as.data.frame(stackprob08GLM)%>%drop_na() 
+df_prob08GLM.S <- data.frame(p08 = unlist(df_prob08GLM))
+df_fav08GLM <- as.data.frame(fav0.8GLM)%>%drop_na() 
+df_fav08GLM.S <- data.frame(f08 = unlist(df_fav08GLM))      
+                  
+ ####### Random Forest
+ ######
+                  
+ ######## Random
+                  
+                  
+listProbRF <- function(x) {
+  stackProb <- stack(x$Raster$Pred.predictions)
+  
+  return(stackProb)
+}
+
+# Random 
+
+listProb02RF <- lapply(Rsdm02RF, listProbRF)
+stackprob02RF <- stack(listProb02RF)
+fav0.2RF <- calc(stackprob02RF, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02RF <- as.data.frame(stackprob02RF)%>%drop_na() 
+df_prob02RF.R <- data.frame(p02 = unlist(df_prob02RF))
+df_fav02RF <- as.data.frame(fav0.2RF)
+df_fav02RF.R <- data.frame(f02 = unlist(df_fav02RF))
+
+
+listProb04RF <- lapply(Rsdm04RF, listProbRF)
+stackprob04RF <- stack(listProb04RF)
+fav0.4RF <- calc(stackprob04RF, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04RF <- as.data.frame(stackprob04RF)%>%drop_na() 
+df_prob04RF.R <- data.frame(p04 = unlist(df_prob04RF))
+df_fav04RF <- as.data.frame(fav0.4RF)
+df_fav04RF.R <- data.frame(f04 = unlist(df_fav04RF))
+
+listProb05RF <- lapply(Rsdm05RF, listProbRF)
+stackprob05RF <- stack(listProb05RF)
+fav0.5RF <- calc(stackprob05RF, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05RF <- as.data.frame(stackprob05RF)%>%drop_na() 
+df_prob05RF.R <- data.frame(p05 = unlist(df_prob05RF))
+df_fav05RF <- as.data.frame(fav0.5RF)
+df_fav05RF.R <- data.frame(f05 = unlist(df_fav05RF))
+
+
+listProb06RF <- lapply(Rsdm06RF, listProbRF)
+stackprob06RF <- stack(listProb06RF)
+fav0.6RF <- calc(stackprob06RF, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06RF <- as.data.frame(stackprob06RF)%>%drop_na() 
+df_prob06RF.R <- data.frame(p06 = unlist(df_prob06RF))
+df_fav06RF <- as.data.frame(fav0.6RF)
+df_fav06RF.R <- data.frame(f06 = unlist(df_fav06RF))
+
+
+listProb08RF <- lapply(Rsdm08RF, listProbRF)
+stackprob08RF <- stack(listProb08RF)
+fav0.8RF <- calc(stackprob08RF, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08RF <- as.data.frame(stackprob08RF)%>%drop_na() 
+df_prob08RF.R <- data.frame(p08 = unlist(df_prob08RF))
+df_fav08RF <- as.data.frame(fav0.8RF)
+df_fav08RF.R <- data.frame(f08 = unlist(df_fav08RF))
+
+# Stratified
+
+listProb02RF <- lapply(Ssdm02RF, listProbRF)
+stackprob02RF <- stack(listProb02RF)
+fav0.2RF <- calc(stackprob02RF, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02RF <- as.data.frame(stackprob02RF)%>%drop_na() 
+df_prob02RF.S <- data.frame(p02 = unlist(df_prob02RF))
+df_fav02RF <- as.data.frame(fav0.2RF)
+df_fav02RF.S <- data.frame(f02 = unlist(df_fav02RF))
+
+
+listProb04RF <- lapply(Ssdm04RF, listProbRF)
+stackprob04RF <- stack(listProb04RF)
+fav0.4RF <- calc(stackprob04RF, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04RF <- as.data.frame(stackprob04RF)%>%drop_na() 
+df_prob04RF.S <- data.frame(p04 = unlist(df_prob04RF))
+df_fav04RF <- as.data.frame(fav0.4RF)
+df_fav04RF.S <- data.frame(f04 = unlist(df_fav04RF))
+
+listProb05RF <- lapply(Ssdm05RF, listProbRF)
+stackprob05RF <- stack(listProb05RF)
+fav0.5RF <- calc(stackprob05RF, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05RF <- as.data.frame(stackprob05RF)%>%drop_na() 
+df_prob05RF.S <- data.frame(p05 = unlist(df_prob05RF))
+df_fav05RF <- as.data.frame(fav0.5RF)
+df_fav05RF.S <- data.frame(f05 = unlist(df_fav05RF))
+
+
+listProb06RF <- lapply(Ssdm06RF, listProbRF)
+stackprob06RF <- stack(listProb06RF)
+fav0.6RF <- calc(stackprob06RF, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06RF <- as.data.frame(stackprob06RF)%>%drop_na() 
+df_prob06RF.S <- data.frame(p06 = unlist(df_prob06RF))
+df_fav06RF <- as.data.frame(fav0.6RF)
+df_fav06RF.S <- data.frame(f06 = unlist(df_fav06RF))
+
+
+listProb08RF <- lapply(Ssdm08RF, listProbRF)
+stackprob08RF <- stack(listProb08RF)
+fav0.8RF <- calc(stackprob08RF, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08RF <- as.data.frame(stackprob08RF)%>%drop_na() 
+df_prob08RF.S <- data.frame(p08 = unlist(df_prob08RF))
+df_fav08RF <- as.data.frame(fav0.8RF)
+df_fav08RF.S <- data.frame(f08 = unlist(df_fav08RF))
+
+
+
+
+
+ ####### GAM
+                 
+          listProbGAM <- function(x) {
+  stackProb <- stack(x$Raster$df.prediction.Pred)
+  
+  return(stackProb)
+}
+
+
+# Random 
+
+listProb02GAM <- lapply(Rsdm02GAM, listProbGAM)
+stackprob02GAM <- stack(listProb02GAM)
+fav0.2GAM <- calc(stackprob02GAM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GAM <- as.data.frame(stackprob02GAM)%>%drop_na() 
+df_prob02GAM.R <- data.frame(p02 = unlist(df_prob02GAM))
+df_fav02GAM <- as.data.frame(fav0.2GAM)%>%drop_na()
+df_fav02GAM.R <- data.frame(f02 = unlist(df_fav02GAM))
+
+
+listProb04GAM <- lapply(Rsdm04GAM, listProbGAM)
+stackprob04GAM <- stack(listProb04GAM)
+fav0.4GAM <- calc(stackprob04GAM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GAM <- as.data.frame(stackprob04GAM)%>%drop_na() 
+df_prob04GAM.R <- data.frame(p04 = unlist(df_prob04GAM))
+df_fav04GAM <- as.data.frame(fav0.4GAM)%>%drop_na()
+df_fav04GAM.R <- data.frame(f04 = unlist(df_fav04GAM))
+
+listProb05GAM <- lapply(Rsdm05GAM, listProbGAM)
+stackprob05GAM <- stack(listProb05GAM)
+fav0.5GAM <- calc(stackprob05GAM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GAM <- as.data.frame(stackprob05GAM)%>%drop_na() 
+df_prob05GAM.R <- data.frame(p05 = unlist(df_prob05GAM))
+df_fav05GAM <- as.data.frame(fav0.5GAM)%>%drop_na()
+df_fav05GAM.R <- data.frame(f05 = unlist(df_fav05GAM))
+
+
+listProb06GAM <- lapply(Rsdm06GAM, listProbGAM)
+stackprob06GAM <- stack(listProb06GAM)
+fav0.6GAM <- calc(stackprob06GAM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GAM <- as.data.frame(stackprob06GAM)%>%drop_na() 
+df_prob06GAM.R <- data.frame(p06 = unlist(df_prob06GAM))
+df_fav06GAM <- as.data.frame(fav0.6GAM)%>%drop_na()
+df_fav06GAM.R <- data.frame(f06 = unlist(df_fav06GAM))
+
+
+listProb08GAM <- lapply(Rsdm08GAM, listProbGAM)
+stackprob08GAM <- stack(listProb08GAM)
+fav0.8GAM <- calc(stackprob08GAM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GAM <- as.data.frame(stackprob08GAM)%>%drop_na() 
+df_prob08GAM.R <- data.frame(p08 = unlist(df_prob08GAM))
+df_fav08GAM <- as.data.frame(fav0.8GAM)%>%drop_na()
+df_fav08GAM.R <- data.frame(f08 = unlist(df_fav08GAM))
+
+# Stratified
+
+listProb02GAM <- lapply(Ssdm02GAM, listProbGAM)
+stackprob02GAM <- stack(listProb02GAM)
+fav0.2GAM <- calc(stackprob02GAM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GAM <- as.data.frame(stackprob02GAM)%>%drop_na() 
+df_prob02GAM.S <- data.frame(p02 = unlist(df_prob02GAM))
+df_fav02GAM <- as.data.frame(fav0.2GAM)%>%drop_na()
+df_fav02GAM.S <- data.frame(f02 = unlist(df_fav02GAM))
+
+
+listProb04GAM <- lapply(Ssdm04GAM, listProbGAM)
+stackprob04GAM <- stack(listProb04GAM)
+fav0.4GAM <- calc(stackprob04GAM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GAM <- as.data.frame(stackprob04GAM)%>%drop_na() 
+df_prob04GAM.S <- data.frame(p04 = unlist(df_prob04GAM))
+df_fav04GAM <- as.data.frame(fav0.4GAM)%>%drop_na()
+df_fav04GAM.S <- data.frame(f04 = unlist(df_fav04GAM))
+
+listProb05GAM <- lapply(Ssdm05GAM, listProbGAM)
+stackprob05GAM <- stack(listProb05GAM)
+fav0.5GAM <- calc(stackprob05GAM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GAM <- as.data.frame(stackprob05GAM)%>%drop_na() 
+df_prob05GAM.S <- data.frame(p05 = unlist(df_prob05GAM))
+df_fav05GAM <- as.data.frame(fav0.5GAM)%>%drop_na()
+df_fav05GAM.S <- data.frame(f05 = unlist(df_fav05GAM))
+
+
+listProb06GAM <- lapply(Ssdm06GAM, listProbGAM)
+stackprob06GAM <- stack(listProb06GAM)
+fav0.6GAM <- calc(stackprob06GAM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GAM <- as.data.frame(stackprob06GAM)%>%drop_na() 
+df_prob06GAM.S <- data.frame(p06 = unlist(df_prob06GAM))
+df_fav06GAM <- as.data.frame(fav0.6GAM)%>%drop_na()
+df_fav06GAM.S <- data.frame(f06 = unlist(df_fav06GAM))
+
+
+listProb08GAM <- lapply(Ssdm08GAM, listProbGAM)
+stackprob08GAM <- stack(listProb08GAM)
+fav0.8GAM <- calc(stackprob08GAM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GAM <- as.data.frame(stackprob08GAM)%>%drop_na() 
+df_prob08GAM.S <- data.frame(p08 = unlist(df_prob08GAM))
+df_fav08GAM <- as.data.frame(fav0.8GAM)%>%drop_na()
+df_fav08GAM.S <- data.frame(f08 = unlist(df_fav08GAM))
+              
+                  
+####### GBM
+                  
+                
+
+listProbGBM <- function(x) {
+  stackProb <- stack(x$Raster$df.prediction.Pred)
+  
+  return(stackProb)
+}
+
+
+# Random 
+
+listProb02GBM <- lapply(Rsdm02GBM, listProbGBM)
+stackprob02GBM <- stack(listProb02GBM)
+fav0.2GBM <- calc(stackprob02GBM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GBM <- as.data.frame(stackprob02GBM)%>%drop_na() 
+df_prob02GBM.R <- data.frame(p02 = unlist(df_prob02GBM))
+df_fav02GBM <- as.data.frame(fav0.2GBM)%>%drop_na()
+df_fav02GBM.R <- data.frame(f02 = unlist(df_fav02GBM))
+
+
+listProb04GBM <- lapply(Rsdm04GBM, listProbGBM)
+stackprob04GBM <- stack(listProb04GBM)
+fav0.4GBM <- calc(stackprob04GBM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GBM <- as.data.frame(stackprob04GBM)%>%drop_na() 
+df_prob04GBM.R <- data.frame(p04 = unlist(df_prob04GBM))
+df_fav04GBM <- as.data.frame(fav0.4GBM)%>%drop_na()
+df_fav04GBM.R <- data.frame(f04 = unlist(df_fav04GBM))
+
+listProb05GBM <- lapply(Rsdm05GBM, listProbGBM)
+stackprob05GBM <- stack(listProb05GBM)
+fav0.5GBM <- calc(stackprob05GBM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GBM <- as.data.frame(stackprob05GBM)%>%drop_na() 
+df_prob05GBM.R <- data.frame(p05 = unlist(df_prob05GBM))
+df_fav05GBM <- as.data.frame(fav0.5GBM)%>%drop_na()
+df_fav05GBM.R <- data.frame(f05 = unlist(df_fav05GBM))
+
+
+listProb06GBM <- lapply(Rsdm06GBM, listProbGBM)
+stackprob06GBM <- stack(listProb06GBM)
+fav0.6GBM <- calc(stackprob06GBM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GBM <- as.data.frame(stackprob06GBM)%>%drop_na() 
+df_prob06GBM.R <- data.frame(p06 = unlist(df_prob06GBM))
+df_fav06GBM <- as.data.frame(fav0.6GBM)%>%drop_na()
+df_fav06GBM.R <- data.frame(f06 = unlist(df_fav06GBM))
+
+
+listProb08GBM <- lapply(Rsdm08GBM, listProbGBM)
+stackprob08GBM <- stack(listProb08GBM)
+fav0.8GBM <- calc(stackprob08GBM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GBM <- as.data.frame(stackprob08GBM)%>%drop_na() 
+df_prob08GBM.R <- data.frame(p08 = unlist(df_prob08GBM))
+df_fav08GBM <- as.data.frame(fav0.8GBM)%>%drop_na()
+df_fav08GBM.R <- data.frame(f08 = unlist(df_fav08GBM))
+
+# Stratified
+
+listProb02GBM <- lapply(Ssdm02GBM, listProbGBM)
+stackprob02GBM <- stack(listProb02GBM)
+fav0.2GBM <- calc(stackprob02GBM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GBM <- as.data.frame(stackprob02GBM)%>%drop_na() 
+df_prob02GBM.S <- data.frame(p02 = unlist(df_prob02GBM))
+df_fav02GBM <- as.data.frame(fav0.2GBM)%>%drop_na()
+df_fav02GBM.S <- data.frame(f02 = unlist(df_fav02GBM))
+
+
+listProb04GBM <- lapply(Ssdm04GBM, listProbGBM)
+stackprob04GBM <- stack(listProb04GBM)
+fav0.4GBM <- calc(stackprob04GBM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GBM <- as.data.frame(stackprob04GBM)%>%drop_na() 
+df_prob04GBM.S <- data.frame(p04 = unlist(df_prob04GBM))
+df_fav04GBM <- as.data.frame(fav0.4GBM)%>%drop_na()
+df_fav04GBM.S <- data.frame(f04 = unlist(df_fav04GBM))
+
+listProb05GBM <- lapply(Ssdm05GBM, listProbGBM)
+stackprob05GBM <- stack(listProb05GBM)
+fav0.5GBM <- calc(stackprob05GBM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GBM <- as.data.frame(stackprob05GBM)%>%drop_na() 
+df_prob05GBM.S <- data.frame(p05 = unlist(df_prob05GBM))
+df_fav05GBM <- as.data.frame(fav0.5GBM)%>%drop_na()
+df_fav05GBM.S <- data.frame(f05 = unlist(df_fav05GBM))
+
+
+listProb06GBM <- lapply(Ssdm06GBM, listProbGBM)
+stackprob06GBM <- stack(listProb06GBM)
+fav0.6GBM <- calc(stackprob06GBM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GBM <- as.data.frame(stackprob06GBM)%>%drop_na() 
+df_prob06GBM.S <- data.frame(p06 = unlist(df_prob06GBM))
+df_fav06GBM <- as.data.frame(fav0.6GBM)%>%drop_na()
+df_fav06GBM.S <- data.frame(f06 = unlist(df_fav06GBM))
+
+
+listProb08GBM <- lapply(Ssdm08GBM, listProbGBM)
+stackprob08GBM <- stack(listProb08GBM)
+fav0.8GBM <- calc(stackprob08GBM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GBM <- as.data.frame(stackprob08GBM)%>%drop_na() 
+df_prob08GBM.S <- data.frame(p08 = unlist(df_prob08GBM))
+df_fav08GBM <- as.data.frame(fav0.8GBM)%>%drop_na()
+df_fav08GBM.S <- data.frame(f08 = unlist(df_fav08GBM))
+
+ # GLM
+   df_probGLM.R <- as.data.frame(cbind(df_prob02GLM.R, df_prob04GLM.R, df_prob05GLM.R, df_prob06GLM.R, df_prob08GLM.R))                
+df_favGLM.R <- as.data.frame(cbind(df_fav02GLM.R, df_fav04GLM.R, df_fav05GLM.R, df_fav06GLM.R, df_fav08GLM.R))               
+
+                  
+ set.seed(999)
+ v <- sample(1:1457750,10000, replace = FALSE)
+ df_probGLM.R <- df_probGLM.R[v,]
+ df_favGLM.R <- df_favGLM.R[v,] 
+
+df_probGLM.S <- as.data.frame(cbind(df_prob02GLM.S, df_prob04GLM.S, df_prob05GLM.S, df_prob06GLM.S, df_prob08GLM.S))                
+df_favGLM.S <- as.data.frame(cbind(df_fav02GLM.S, df_fav04GLM.S, df_fav05GLM.S, df_fav06GLM.S, df_fav08GLM.S))               
+
+ df_probGLM.S <- df_probGLM.S[v,]
+ df_favGLM.S <- df_favGLM.S[v,]
+                  
+                  
+                  
+ df_probGLM.S_Dunn <-  df_probGLM.S%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                values_to = "values")
+ df_probGLM.S_Dunn$sampling <- "S"
+ df_probGLM.S_Dunn <- unite( df_probGLM.S_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+
+df_probGLM.R_Dunn <- df_probGLM.R%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                           values_to = "values")
+ df_probGLM.R_Dunn$sampling <- "R"
+df_probGLM.R_Dunn <- unite(df_probGLM.R_Dunn, prevalence, sampling, col = "prev_samp", sep = "")   
+                  
+                  
+                  
+                   
+ df_favGLM.S_Dunn <-  df_favGLM.S%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                values_to = "values")
+ df_favGLM.S_Dunn$sampling <- "S"
+ df_favGLM.S_Dunn <- unite( df_favGLM.S_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+
+df_favGLM.R_Dunn <- df_favGLM.R%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                           values_to = "values")
+ df_favGLM.R_Dunn$sampling <- "R"
+df_favGLM.R_Dunn <- unite(df_favGLM.R_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+                  
+                  
+                  
+df_DunnProbGLM <- rbind( df_probGLM.R_Dunn,  df_probGLM.S_Dunn)
+df_DunnProbGLM$prev_samp <- as.factor(df_DunnProbGLM$prev_samp)
+DunnProbGLM <- dunnTest(values ~ prev_samp,data=df_DunnProbGLM,method="bonferroni")
+write.csv(DunnProbGLM[["res"]], "DunnProbGLM.csv")                  
+                  
+df_DunnFavGLM <- rbind( df_favGLM.R_Dunn,  df_favGLM.S_Dunn)
+df_DunnFavGLM$prev_samp <- as.factor(df_DunnFavGLM$prev_samp)
+DunnFavGLM <- dunnTest(values ~ prev_samp,data=df_DunnFavGLM,method="bonferroni")                   
+write.csv(DunnFavGLM[["res"]], "DunnFavGLM.csv")                  
+                  
+ # RF                    
+  
+df_probRF.R <- as.data.frame(cbind(df_prob02RF.R, df_prob04RF.R, df_prob05RF.R, df_prob06RF.R, df_prob08RF.R))                
+df_favRF.R <- as.data.frame(cbind(df_fav02RF.R, df_fav04RF.R, df_fav05RF.R, df_fav06RF.R, df_fav08RF.R))               
+df_favRF.R <- df_favRF.R%>%drop_na() 
+                  
+ set.seed(999)
+ v <- sample(1:1457750,10000, replace = FALSE)
+ df_probRF.R <- df_probRF.R[v,]
+
+
+ df_favRF.R <- df_favRF.R[v,] 
+
+df_probRF.S <- as.data.frame(cbind(df_prob02RF.S, df_prob04RF.S, df_prob05RF.S, df_prob06RF.S, df_prob08RF.S))                
+df_favRF.S <- as.data.frame(cbind(df_fav02RF.S, df_fav04RF.S, df_fav05RF.S, df_fav06RF.S, df_fav08RF.S))               
+df_favRF.S <- df_favRF.S%>%drop_na()   
+                  
+
+ df_probRF.S <- df_probRF.S[v,]
+
+ df_favRF.S <- df_favRF.S[v,]
+                  
+                  
+                  
+ df_probRF.S_Dunn <-  df_probRF.S%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                values_to = "values")
+ df_probRF.S_Dunn$sampling <- "S"
+ df_probRF.S_Dunn <- unite( df_probRF.S_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+
+df_probRF.R_Dunn <- df_probRF.R%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                           values_to = "values")
+ df_probRF.R_Dunn$sampling <- "R"
+df_probRF.R_Dunn <- unite(df_probRF.R_Dunn, prevalence, sampling, col = "prev_samp", sep = "")   
+                  
+                  
+                  
+                   
+ df_favRF.S_Dunn <-  df_favRF.S%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                values_to = "values")
+ df_favRF.S_Dunn$sampling <- "S"
+ df_favRF.S_Dunn <- unite( df_favRF.S_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+
+df_favRF.R_Dunn <- df_favRF.R%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                           values_to = "values")
+ df_favRF.R_Dunn$sampling <- "R"
+df_favRF.R_Dunn <- unite(df_favRF.R_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+                  
+                  
+                  
+df_DunnProbRF <- rbind( df_probRF.R_Dunn,  df_probRF.S_Dunn)
+df_DunnProbRF$prev_samp <- as.factor(df_DunnProbRF$prev_samp)
+DunnProbRF <- dunnTest(values ~ prev_samp,data=df_DunnProbRF,method="bonferroni")
+write.csv(DunnProbRF[["res"]], "DunnProbRF.csv")                 
+                  
+df_DunnFavRF <- rbind( df_favRF.R_Dunn,  df_favRF.S_Dunn)
+df_DunnFavRF$prev_samp <- as.factor(df_DunnFavRF$prev_samp)
+DunnFavRF <- dunnTest(values ~ prev_samp,data=df_DunnFavRF,method="bonferroni")  
+write.csv(DunnFavRF[["res"]], "DunnFavRF.csv")
+                  
+                  
+ # GAM
+                  
+ df_probGAM.R <- as.data.frame(cbind(df_prob02GAM.R, df_prob04GAM.R, df_prob05GAM.R, df_prob06GAM.R, df_prob08GAM.R))                
+df_favGAM.R <- as.data.frame(cbind(df_fav02GAM.R, df_fav04GAM.R, df_fav05GAM.R, df_fav06GAM.R, df_fav08GAM.R))               
+
+                  
+ set.seed(999)
+ v <- sample(1:1457750,10000, replace = FALSE)
+ df_probGAM.R <- df_probGAM.R[v,]
+ df_favGAM.R <- df_favGAM.R[v,] 
+
+df_probGAM.S <- as.data.frame(cbind(df_prob02GAM.S, df_prob04GAM.S, df_prob05GAM.S, df_prob06GAM.S, df_prob08GAM.S))                
+df_favGAM.S <- as.data.frame(cbind(df_fav02GAM.S, df_fav04GAM.S, df_fav05GAM.S, df_fav06GAM.S, df_fav08GAM.S))               
+ 
+                  
+
+ df_probGAM.S <- df_probGAM.S[v,]
+ df_favGAM.S <- df_favGAM.S[v,]
+                  
+                  
+                  
+ df_probGAM.S_Dunn <-  df_probGAM.S%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                values_to = "values")
+ df_probGAM.S_Dunn$sampling <- "S"
+ df_probGAM.S_Dunn <- unite( df_probGAM.S_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+
+df_probGAM.R_Dunn <- df_probGAM.R%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                           values_to = "values")
+ df_probGAM.R_Dunn$sampling <- "R"
+df_probGAM.R_Dunn <- unite(df_probGAM.R_Dunn, prevalence, sampling, col = "prev_samp", sep = "")   
+                  
+                  
+                  
+                   
+ df_favGAM.S_Dunn <-  df_favGAM.S%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                values_to = "values")
+ df_favGAM.S_Dunn$sampling <- "S"
+ df_favGAM.S_Dunn <- unite( df_favGAM.S_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+
+df_favGAM.R_Dunn <- df_favGAM.R%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                           values_to = "values")
+ df_favGAM.R_Dunn$sampling <- "R"
+df_favGAM.R_Dunn <- unite(df_favGAM.R_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+                  
+                  
+                  
+df_DunnProbGAM <- rbind( df_probGAM.R_Dunn,  df_probGAM.S_Dunn)
+df_DunnProbGAM$prev_samp <- as.factor(df_DunnProbGAM$prev_samp)
+DunnProbGAM <- dunnTest(values ~ prev_samp,data=df_DunnProbGAM,method="bonferroni")
+write.csv(DunnProbGAM[["res"]], "DunnProbGAM.csv")                  
+                  
+df_DunnFavGAM <- rbind( df_favGAM.R_Dunn,  df_favGAM.S_Dunn)
+df_DunnFavGAM$prev_samp <- as.factor(df_DunnFavGAM$prev_samp)
+DunnFavGAM <- dunnTest(values ~ prev_samp,data=df_DunnFavGAM,method="bonferroni")                   
+write.csv(DunnFavGAM[["res"]], "DunnFavGAM.csv")       
+                  
+
+# GBM
+                  
+
+                  
+ df_probGBM.R <- as.data.frame(cbind(df_prob02GBM.R, df_prob04GBM.R, df_prob05GBM.R, df_prob06GBM.R, df_prob08GBM.R))                
+df_favGBM.R <- as.data.frame(cbind(df_fav02GBM.R, df_fav04GBM.R, df_fav05GBM.R, df_fav06GBM.R, df_fav08GBM.R))               
+
+                  
+ set.seed(999)
+ v <- sample(1:1457750,10000, replace = FALSE)
+ df_probGBM.R <- df_probGBM.R[v,]
+ df_favGBM.R <- df_favGBM.R[v,] 
+
+df_probGBM.S <- as.data.frame(cbind(df_prob02GBM.S, df_prob04GBM.S, df_prob05GBM.S, df_prob06GBM.S, df_prob08GBM.S))                
+df_favGBM.S <- as.data.frame(cbind(df_fav02GBM.S, df_fav04GBM.S, df_fav05GBM.S, df_fav06GBM.S, df_fav08GBM.S))               
+ 
+                  
+ df_probGBM.S <- df_probGBM.S[v,]
+ df_favGBM.S <- df_favGBM.S[v,]
+                  
+                  
+                  
+ df_probGBM.S_Dunn <-  df_probGBM.S%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                values_to = "values")
+ df_probGBM.S_Dunn$sampling <- "S"
+ df_probGBM.S_Dunn <- unite( df_probGBM.S_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+
+df_probGBM.R_Dunn <- df_probGBM.R%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                           values_to = "values")
+ df_probGBM.R_Dunn$sampling <- "R"
+df_probGBM.R_Dunn <- unite(df_probGBM.R_Dunn, prevalence, sampling, col = "prev_samp", sep = "")   
+                  
+                  
+                  
+                   
+ df_favGBM.S_Dunn <-  df_favGBM.S%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                values_to = "values")
+ df_favGBM.S_Dunn$sampling <- "S"
+ df_favGBM.S_Dunn <- unite( df_favGBM.S_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+
+df_favGBM.R_Dunn <- df_favGBM.R%>% pivot_longer( cols = 1:5, names_to ="prevalence", 
+                                           values_to = "values")
+ df_favGBM.R_Dunn$sampling <- "R"
+df_favGBM.R_Dunn <- unite(df_favGBM.R_Dunn, prevalence, sampling, col = "prev_samp", sep = "")
+                  
+                  
+                  
+df_DunnProbGBM <- rbind( df_probGBM.R_Dunn,  df_probGBM.S_Dunn)
+df_DunnProbGBM$prev_samp <- as.factor(df_DunnProbGBM$prev_samp)
+DunnProbGBM <- dunnTest(values ~ prev_samp,data=df_DunnProbGBM,method="bonferroni")
+write.csv(DunnProbGBM[["res"]], "DunnProbGBM.csv")                  
+                  
+df_DunnFavGBM <- rbind( df_favGBM.R_Dunn,  df_favGBM.S_Dunn)
+df_DunnFavGBM$prev_samp <- as.factor(df_DunnFavGBM$prev_samp)
+DunnFavGBM <- dunnTest(values ~ prev_samp,data=df_DunnFavGBM,method="bonferroni")                   
+write.csv(DunnFavGBM[["res"]], "DunnFavGBM.csv")     
+                  
+          
