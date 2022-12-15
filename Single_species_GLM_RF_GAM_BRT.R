@@ -1,4 +1,4 @@
-list.of.packages <- c("raster", "tidyverse", "sp", "sf", "virtualspecies", "ggplot2", "rgdal", "fuzzySim", "rasterVis", "viridis", "RStoolbox", "rnaturalearth", "caret","ranger","mgcv", "dismo", "gbm")
+list.of.packages <- c("raster", "tidyverse", "sp", "sf", "virtualspecies", "ggplot2", "rgdal", "fuzzySim", "rasterVis", "viridis", "RStoolbox", "rnaturalearth", "ranger","mgcv", "dismo")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
