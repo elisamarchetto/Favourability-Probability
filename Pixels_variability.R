@@ -4,7 +4,6 @@
   library(tidyverse)
   library(scico)
   library(raster)
-  library(rasterVis)
   library(ggplot2)
   library(rnaturalearth)
   library(sf)
