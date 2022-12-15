@@ -3068,4 +3068,266 @@ df_DunnFavGBM$prev_samp <- as.factor(df_DunnFavGBM$prev_samp)
 DunnFavGBM <- dunnTest(values ~ prev_samp,data=df_DunnFavGBM,method="bonferroni")                   
 write.csv(DunnFavGBM[["res"]], "DunnFavGBM.csv")     
                   
-          
+ ############ mean of models for prevalence and then cv ############
+e <- extent(-24.33333, 40.16667, 27.66667, 80.5)
+r2 <- crop(Rsdm02GLM$Raster$pres_P, e)
+r4 <- crop(Rsdm04GLM$Raster$pres_P, e)
+r5 <- crop(Rsdm05GLM$Raster$pres_P, e)
+r6 <- crop(Rsdm06GLM$Raster$pres_P, e)
+r8 <- crop(Rsdm08GLM$Raster$pres_P, e)
+                  
+                  
+Prob02R <- stack(r2, Rsdm02RF$Raster$Pred.predictions, Rsdm02GAM$Raster$df.prediction.Pred, Rsdm02GBM$Raster$df.prediction.Pred)
+Prob04R <- stack(r4, Rsdm04RF$Raster$Pred.predictions, Rsdm04GAM$Raster$df.prediction.Pred, Rsdm04GBM$Raster$df.prediction.Pred)
+Prob05R <- stack(r5, Rsdm05RF$Raster$Pred.predictions, Rsdm05GAM$Raster$df.prediction.Pred, Rsdm05GBM$Raster$df.prediction.Pred)
+Prob06R <- stack(r6, Rsdm06RF$Raster$Pred.predictions, Rsdm06GAM$Raster$df.prediction.Pred, Rsdm06GBM$Raster$df.prediction.Pred)
+Prob08R <- stack(r8, Rsdm08RF$Raster$Pred.predictions, Rsdm08GAM$Raster$df.prediction.Pred, Rsdm08GBM$Raster$df.prediction.Pred)               
+
+fav0.2GLM <- calc(Rsdm02GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+fav0.4GLM <- calc(Rsdm04GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+fav0.5GLM <- calc(Rsdm05GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+fav0.6GLM <- calc(Rsdm06GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+fav0.8GLM <- calc(Rsdm08GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+fav0.2RF <- calc(Rsdm02RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+fav0.4RF <- calc(Rsdm04RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+fav0.5RF <- calc(Rsdm05RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+fav0.6RF <- calc(Rsdm06RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+fav0.8RF <- calc(Rsdm08RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+fav0.2GAM <- calc(Rsdm02GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+fav0.4GAM <- calc(Rsdm04GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+fav0.5GAM <- calc(Rsdm05GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+fav0.6GAM <- calc(Rsdm06GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+fav0.8GAM <- calc(Rsdm08GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+fav0.2GBM <- calc(Rsdm02GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+fav0.4GBM <- calc(Rsdm04GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+fav0.5GBM <- calc(Rsdm05GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+fav0.6GBM <- calc(Rsdm06GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+fav0.8GBM <- calc(Rsdm08GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+                  
+fr2 <- crop(fav0.2GLM, e)
+fr4 <- crop(fav0.4GLM, e)
+fr5 <- crop(fav0.5GLM, e)
+fr6 <- crop(fav0.6GLM, e)
+fr8 <- crop(fav0.8GLM, e)
+                  
+Fav02R <- stack(fr2, fav0.2RF, fav0.2GAM, fav0.2GBM)                  
+Fav04R <- stack(fr4, fav0.4RF, fav0.4GAM, fav0.4GBM) 
+Fav05R <- stack(fr5, fav0.5RF, fav0.5GAM, fav0.5GBM) 
+Fav06R <- stack(fr6, fav0.6RF, fav0.6GAM, fav0.6GBM) 
+Fav08R <- stack(fr8, fav0.8RF, fav0.8GAM, fav0.8GBM)                   
+
+mProb02R <- calc(Prob02R, fun = mean)                  
+mProb04R <- calc(Prob04R, fun = mean)  
+mProb05R <- calc(Prob05R, fun = mean)                    
+mProb06R <- calc(Prob06R, fun = mean)                    
+mProb08R <- calc(Prob08R, fun = mean) 
+                  
+mFav02R <- calc(Fav02R, fun = mean)                  
+mFav04R <- calc(Fav04R, fun = mean)  
+mFav05R <- calc(Fav05R, fun = mean)                    
+mFav06R <- calc(Fav06R, fun = mean)                    
+mFav08R <- calc(Fav08R, fun = mean)                  
+                  
+CVprobRmean <- cv(mProb02R, mProb04R, mProb05R, mProb06R, mProb08R)
+CVfavRmean <- cv(mFav02R, mFav04R, mFav05R, mFav06R, mFav08R)
+difCvRmean <- CVprobRmean - CVfavRmean                  
+
+######### stratified ############
+                  
+s2 <- crop(Ssdm02GLM$Raster$pres_P, e)
+s4 <- crop(Ssdm04GLM$Raster$pres_P, e)
+s5 <- crop(Ssdm05GLM$Raster$pres_P, e)
+s6 <- crop(Ssdm06GLM$Raster$pres_P, e)
+s8 <- crop(Ssdm08GLM$Raster$pres_P, e)                  
+
+fav0.2GLM <- calc(Ssdm02GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+fav0.4GLM <- calc(Ssdm04GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+fav0.5GLM <- calc(Ssdm05GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+fav0.6GLM <- calc(Ssdm06GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+fav0.8GLM <- calc(Ssdm08GLM$Raster$pres_P, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+fav0.2RF <- calc(Ssdm02RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+fav0.4RF <- calc(Ssdm04RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+fav0.5RF <- calc(Ssdm05RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+fav0.6RF <- calc(Ssdm06RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+fav0.8RF <- calc(Ssdm08RF$Raster$Pred.predictions, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+fav0.2GAM <- calc(Ssdm02GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+fav0.4GAM <- calc(Ssdm04GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+fav0.5GAM <- calc(Ssdm05GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+fav0.6GAM <- calc(Ssdm06GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+fav0.8GAM <- calc(Ssdm08GAM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+fav0.2GBM <- calc(Ssdm02GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+fav0.4GBM <- calc(Ssdm04GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+fav0.5GBM <- calc(Ssdm05GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+fav0.6GBM <- calc(Ssdm06GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+fav0.8GBM <- calc(Ssdm08GBM$Raster$df.prediction.Pred, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+                 
+                  
+Prob02S <- stack(s2, Ssdm02RF$Raster$Pred.predictions, Ssdm02GAM$Raster$df.prediction.Pred, Ssdm02GBM$Raster$df.prediction.Pred)
+Prob04S <- stack(s4, Ssdm04RF$Raster$Pred.predictions, Ssdm04GAM$Raster$df.prediction.Pred, Ssdm04GBM$Raster$df.prediction.Pred)
+Prob05S <- stack(s5, Ssdm05RF$Raster$Pred.predictions, Ssdm05GAM$Raster$df.prediction.Pred, Ssdm05GBM$Raster$df.prediction.Pred)
+Prob06S <- stack(s6, Ssdm06RF$Raster$Pred.predictions, Ssdm06GAM$Raster$df.prediction.Pred, Ssdm06GBM$Raster$df.prediction.Pred)
+Prob08S <- stack(s8, Ssdm08RF$Raster$Pred.predictions, Ssdm08GAM$Raster$df.prediction.Pred, Ssdm08GBM$Raster$df.prediction.Pred)               
+ 
+fs2 <- crop(fav0.2GLM, e)
+fs4 <- crop(fav0.4GLM, e)
+fs5 <- crop(fav0.5GLM, e)
+fs6 <- crop(fav0.6GLM, e)
+fs8 <- crop(fav0.8GLM, e)                 
+                  
+Fav02S <- stack(fs2, fav0.2RF, fav0.2GAM, fav0.2GBM)                  
+Fav04S <- stack(fs4, fav0.4RF, fav0.4GAM, fav0.4GBM) 
+Fav05S <- stack(fs5, fav0.5RF, fav0.5GAM, fav0.5GBM) 
+Fav06S <- stack(fs6, fav0.6RF, fav0.6GAM, fav0.6GBM) 
+Fav08S <- stack(fs8, fav0.8RF, fav0.8GAM, fav0.8GBM)                   
+                  
+                  
+mProb02S <- calc(Prob02S, fun = mean)                  
+mProb04S <- calc(Prob04S, fun = mean)  
+mProb05S <- calc(Prob05S, fun = mean)                    
+mProb06S <- calc(Prob06S, fun = mean)                    
+mProb08S <- calc(Prob08S, fun = mean) 
+                  
+mFav02S <- calc(Fav02S, fun = mean)                  
+mFav04S <- calc(Fav04S, fun = mean)  
+mFav05S <- calc(Fav05S, fun = mean)                    
+mFav06S <- calc(Fav06S, fun = mean)                    
+mFav08S <- calc(Fav08S, fun = mean)  
+                  
+CVprobSmean <- cv(mProb02S, mProb04S, mProb05S, mProb06S, mProb08S)
+CVfavSmean <- cv(mFav02S, mFav04S, mFav05S, mFav06S, mFav08S)
+difCvSmean <- CVprobSmean - CVfavSmean                    
+
+                  
+                  
+stack_probR <- stack(CVprobRmean, CVprobSmean)
+
+
+stack_favR <- stack(CVfavRmean,CVfavSmean)
+
+
+stack_diffR <- stack(difCvRmean,  difCvSmean)
+
+ stack_favR_df <- 
+  stack_favR_df %>%
+  pivot_longer(
+    c(-x, -y),
+    names_to = "variable",
+    values_to = "value")
+
+stack_diffR_df <-
+  as.data.frame(stack_diffR, xy = TRUE) %>%
+  na.omit()
+
+stack_diffR_df <- 
+  stack_diffR_df %>%
+  pivot_longer(
+    c(-x, -y),
+    names_to = "variable",
+    values_to = "value") 
+
+                  
+world <- ne_coastline(scale = "medium", returnclass = "sf")                  
+
+pp <- c("Random sampling","Stratified sampling")                  
+ r1<- stack_probR_df %>%
+  mutate(across(variable, factor, levels=c("layer.1","layer.2"))) %>%
+  ggplot() +
+  geom_tile(aes(x = x, y = y, fill = value)) +
+  facet_wrap(~ variable, nrow = 4) + 
+  geom_sf(data=world,
+          colour = "black", fill = "transparent", size=0.3)+  
+  scale_fill_scico(palette = "batlow",direction = 1,alpha = 0.7, limits=c(2.772969,108.33145),
+                   oob = scales::squish, na.value="transparent")+
+  labs(x="Longitude",y="Latitude", fill="CV", title="Probability")+
+  theme_light()+
+  theme(
+    legend.position = "bottom",  
+    plot.title = element_text(size=30,face = 'bold',hjust = 0.5),
+    legend.title=element_text(size=20,face = 'bold'),
+    legend.text = element_text(size=18,face = 'bold'),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.title.x = element_text(size=19,face = 'bold'),
+    axis.text.x = element_text(size = 19, face = 'bold'),
+    axis.title.y = element_text(size=23,face = 'bold'),
+    axis.text.y = element_text(size = 19, face = 'bold'),
+    axis.ticks.y=element_blank(),
+    strip.text = element_text(size = 18,face = 'bold', colour = "black"))+
+  guides(fill = guide_colourbar(title.position="top", title.hjust = 0.5, barwidth = 21, barheight = 1.9),
+         size = guide_legend(title.position="top", title.hjust = 0.5))+
+         coord_sf(xlim = c(-26, 41), ylim = c(32, 72), expand = TRUE)
+
+r2<- stack_favR_df %>%
+  mutate(across(variable, factor, levels=c("layer.1","layer.2"))) %>%
+  ggplot() +
+  geom_tile(aes(x = x, y = y, fill = value)) +
+  facet_wrap(~ variable, nrow = 2) + 
+  geom_sf(data=world,
+          colour = "black", fill = "transparent", size=0.3)+  
+  scale_fill_scico(palette = "batlow",direction = 1,alpha = 0.7, limits=c(0.08155169,93.44030),
+                   oob = scales::squish, na.value="transparent")+
+  labs(x="Longitude",y="Latitude", fill="CV", title="Favourability")+
+  theme_light()+
+  theme(
+    legend.position = "bottom",  
+    plot.title = element_text(size=30,face = 'bold',hjust = 0.5),
+    legend.title=element_text(size=20,face = 'bold'),
+    legend.text = element_text(size=18,face = 'bold'),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.title.x = element_text(size=19,face = 'bold'),
+    axis.text.x = element_text(size = 19, face = 'bold'),
+    axis.title.y = element_text(size=23,face = 'bold'),
+    axis.text.y = element_text(size = 19, face = 'bold'),
+    axis.ticks.y=element_blank(),
+    strip.text = element_text(size = 18,face = 'bold', colour = "black"))+
+  guides(fill = guide_colourbar(title.position="top", title.hjust = 0.5, barwidth = 21, barheight = 1.9),
+         size = guide_legend(title.position="top", title.hjust = 0.5))+
+         coord_sf(xlim = c(-26, 41), ylim = c(32, 72), expand = TRUE)
+         
+         r3<- stack_diffR_df %>%
+           mutate(across(variable, factor, levels=c("layer.1","layer.2"))) %>%
+           ggplot() +
+           geom_tile(aes(x = x, y = y, fill = value)) +
+           facet_wrap(~ variable, nrow = 2) + 
+           geom_sf(data=world,
+                   colour = "black", fill = "transparent", size=0.3)+  
+           scale_fill_scico(palette = "batlow",direction = 1,alpha = 0.7, limits=c(-32.16242,40.90599),
+                            oob = scales::squish, na.value="transparent")+
+           labs(x="Longitude",y="Latitude", fill="CV", title="Difference")+
+           theme_light()+
+           theme(
+             legend.position = "bottom",  
+             plot.title = element_text(size=30,face = 'bold',hjust = 0.5),
+             legend.title=element_text(size=20,face = 'bold'),
+             legend.text = element_text(size=18,face = 'bold'),
+             panel.grid.major = element_blank(),
+             panel.grid.minor = element_blank(),
+             panel.background = element_blank(),
+             axis.title.x = element_text(size=19,face = 'bold'),
+             axis.text.x = element_text(size = 19, face = 'bold'),
+             axis.title.y = element_text(size=23,face = 'bold'),
+             axis.text.y = element_text(size = 19, face = 'bold'),
+             axis.ticks.y=element_blank(),
+             strip.text = element_text(size = 18,face = 'bold', colour = "black"))+
+           guides(fill = guide_colourbar(title.position="top", title.hjust = 0.5, barwidth = 21, barheight = 1.9),
+                  size = guide_legend(title.position="top", title.hjust = 0.5))+
+           coord_sf(xlim = c(-26, 41), ylim = c(32, 72), expand = TRUE)
+         
+         r <- r1 + r2 + r3  
+         
+         ggsave(plot = r,
+                filename = "r2.jpg",
+                width = 25,
+                height = 25,
+                dpi = 600)
+         
