@@ -357,7 +357,7 @@ GGstack_diffR_df <-
 
 ######################
 ######################
-
+world <- ne_coastline(scale = "medium", returnclass = "sf")
 
 s1<- GGstack_probS_df %>%
   mutate(across(variable, factor, levels=c("GLM","GAM","RF","BRT"))) %>%
