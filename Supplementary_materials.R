@@ -3138,6 +3138,32 @@ difCvRmean <- CVprobRmean - CVfavRmean
 
 ######### stratified ############
                   
+Ssdm02GLM <- SsdmGLM[[1]]
+Ssdm04GLM <- SsdmGLM[[2]]
+Ssdm05GLM <- SsdmGLM[[3]]
+Ssdm06GLM <- SsdmGLM[[4]]
+Ssdm08GLM <- SsdmGLM[[5]]
+                  
+ 
+Ssdm02RF <- SsdmRF[[1]]
+Ssdm04RF <- SsdmRF[[2]]
+Ssdm05RF <- SsdmRF[[3]]
+Ssdm06RF <- SsdmRF[[4]]
+Ssdm08RF <- SsdmRF[[5]] 
+                  
+                  
+Ssdm02GAM <- SsdmGAM[[1]]
+Ssdm04GAM <- SsdmGAM[[2]]
+Ssdm05GAM <- SsdmGAM[[3]]
+Ssdm06GAM <- SsdmGAM[[4]]
+Ssdm08GAM <- SsdmGAM[[5]]
+                  
+Ssdm02GBM <- SsdmGBM[[1]]
+Ssdm04GBM <- SsdmGBM[[2]]
+Ssdm05GBM <- SsdmGBM[[3]]
+Ssdm06GBM <- SsdmGBM[[4]]
+Ssdm08GBM <- SsdmGBM[[5]]                    
+                  
 s2 <- crop(Ssdm02GLM$Raster$pres_P, e)
 s4 <- crop(Ssdm04GLM$Raster$pres_P, e)
 s5 <- crop(Ssdm05GLM$Raster$pres_P, e)
