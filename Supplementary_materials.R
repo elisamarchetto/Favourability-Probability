@@ -3240,7 +3240,25 @@ stack_favR <- stack(CVfavRmean,CVfavSmean)
 
 stack_diffR <- stack(difCvRmean,  difCvSmean)
 
- stack_favR_df <- 
+ stack_probR_df <-
+  as.data.frame(stack_probR, xy = TRUE) %>%
+  na.omit()
+
+stack_probR_df <- 
+  stack_probR_df %>%
+  pivot_longer(
+    c(-x, -y),
+    names_to = "variable",
+    values_to = "value")
+
+
+
+
+stack_favR_df <-
+  as.data.frame(stack_favR, xy = TRUE) %>%
+  na.omit()
+
+stack_favR_df <- 
   stack_favR_df %>%
   pivot_longer(
     c(-x, -y),
@@ -3256,17 +3274,21 @@ stack_diffR_df <-
   pivot_longer(
     c(-x, -y),
     names_to = "variable",
-    values_to = "value") 
-
+    values_to = "value")
                   
 world <- ne_coastline(scale = "medium", returnclass = "sf")                  
 
-pp <- c("Random sampling","Stratified sampling")                  
+sampling_names <- c(
+  'layer.1'="Random sampling",
+  'layer.2'="Stratified sampling"
+)
+
+                  
  r1<- stack_probR_df %>%
   mutate(across(variable, factor, levels=c("layer.1","layer.2"))) %>%
   ggplot() +
   geom_tile(aes(x = x, y = y, fill = value)) +
-  facet_wrap(~ variable, nrow = 4) + 
+  facet_wrap(~ variable, nrow = 2, labeller=as_labeller(sampling_names)) + 
   geom_sf(data=world,
           colour = "black", fill = "transparent", size=0.3)+  
   scale_fill_scico(palette = "batlow",direction = 1,alpha = 0.7, limits=c(2.772969,108.33145),
@@ -3295,7 +3317,7 @@ r2<- stack_favR_df %>%
   mutate(across(variable, factor, levels=c("layer.1","layer.2"))) %>%
   ggplot() +
   geom_tile(aes(x = x, y = y, fill = value)) +
-  facet_wrap(~ variable, nrow = 2) + 
+  facet_wrap(~ variable, nrow = 2, labeller=as_labeller(sampling_names)) + 
   geom_sf(data=world,
           colour = "black", fill = "transparent", size=0.3)+  
   scale_fill_scico(palette = "batlow",direction = 1,alpha = 0.7, limits=c(0.08155169,93.44030),
@@ -3324,7 +3346,7 @@ r2<- stack_favR_df %>%
            mutate(across(variable, factor, levels=c("layer.1","layer.2"))) %>%
            ggplot() +
            geom_tile(aes(x = x, y = y, fill = value)) +
-           facet_wrap(~ variable, nrow = 2) + 
+           facet_wrap(~ variable, nrow = 2, labeller=as_labeller(sampling_names)) + 
            geom_sf(data=world,
                    colour = "black", fill = "transparent", size=0.3)+  
            scale_fill_scico(palette = "batlow",direction = 1,alpha = 0.7, limits=c(-32.16242,40.90599),
@@ -3352,8 +3374,8 @@ r2<- stack_favR_df %>%
          r <- r1 + r2 + r3  
          
          ggsave(plot = r,
-                filename = "r2.jpg",
-                width = 25,
-                height = 25,
+                filename = "ESDM_cv.jpg",
+                width = 15,
+                height = 15,
                 dpi = 600)
          
