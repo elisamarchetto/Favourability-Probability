@@ -2162,13 +2162,15 @@ boyceGBMR_tot$sampling <- "Random sampling"
 boyceGBMS_tot$sampling <- "Stratified sampling"
 rb.boyceGBM <- rbind(boyceGBMR_tot, boyceGBMS_tot)  
  
- gam <- ggplot(rb.boyceGAM, aes(prevalence, values, fill = pred))+
+pp <- c("0.2","0.2", "0.4", "0.4", "0.5", "0.5","0.6","0.6", "0.8","0.8")
+
+gam <- ggplot(rb.boyceGAM, aes(prevalence, values, fill = pred))+
   geom_half_violin(alpha = 0.6, side = "l")+
   geom_half_boxplot(nudge = 0.05, outlier.color = NA, side = "r")+
   facet_wrap(~ sampling, nrow = 1) +
   scale_fill_manual(values=c("#800080", "#E69F00"))+
   labs(x = "Sample prevalence", y="Continuous Boyce Index",fill = "Prediction", title="GAM")+
-  scale_x_discrete(limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
+  scale_x_discrete(labels=pp,limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
   theme_light() +
   theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
         legend.position = "bottom",  
@@ -2193,7 +2195,7 @@ glm <- ggplot(rb.boyceGLM, aes(prevalence, values, fill = pred))+
   facet_wrap(~ sampling, nrow = 1) +
   scale_fill_manual(values=c("#800080", "#E69F00"))+
   labs(x = "Sample prevalence", y="Continuous Boyce Index", fill = "Prediction", title="GLM")+
-  scale_x_discrete(limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
+  scale_x_discrete(labels=pp,limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
   theme_light() +
   theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
         legend.position = "bottom",  
@@ -2219,7 +2221,7 @@ rf <- ggplot(rb.boyceRF, aes(prevalence, values, fill = pred))+
   facet_wrap(~ sampling, nrow = 1) +
   scale_fill_manual(values=c("#800080", "#E69F00"))+
   labs(x = "Sample prevalence", y="Continuous Boyce Index",fill = "Prediction", title="RF")+
-  scale_x_discrete(limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
+  scale_x_discrete(labels=pp,limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
   theme_light() +
   theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
         legend.position = "bottom",  
@@ -2245,7 +2247,7 @@ gbm <- ggplot(rb.boyceGBM, aes(prevalence, values, fill = pred))+
   facet_wrap(~ sampling, nrow = 1) +
   scale_fill_manual(values=c("#800080", "#E69F00"))+
   labs(x = "Sample prevalence", y="Continuous Boyce Index",fill = "Prediction", title="BRT")+
-  scale_x_discrete(limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
+  scale_x_discrete(labels=pp,limits=c("F0.2","P0.2", "F0.4", "P0.4", "F0.5", "P0.5","F0.6","P0.6", "F0.8","P0.8"))+
   theme_light() +
   theme(plot.margin = margin(.3,.3,.3,.3, "cm"),
         legend.position = "bottom",  
