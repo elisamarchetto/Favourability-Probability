@@ -2049,6 +2049,113 @@ df_prob02GLM <- as.data.frame(stackprob02GLM)%>%drop_na()
 df_prob02GLM.S <- data.frame(values = unlist(df_prob02GLM))
 df_fav02GLM <- as.data.frame(fav0.2GLM)%>%drop_na() 
 df_fav02GLM.S <- data.frame(values = unlist(df_fav02GLM))
+                  
+# Stratified
+
+listProb02GLM <- lapply(Ssdm02GLM, listProbGLM)
+stackprob02GLM <- stack(listProb02GLM)
+fav0.2GLM <- calc(stackprob02GLM, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02GLM <- as.data.frame(stackprob02GLM)%>%drop_na() 
+df_prob02GLM.S <- data.frame(values = unlist(df_prob02GLM))
+df_fav02GLM <- as.data.frame(fav0.2GLM)%>%drop_na()
+df_fav02GLM.S <- data.frame(values = unlist(df_fav02GLM))
+
+
+listProb04GLM <- lapply(Ssdm04GLM, listProbGLM)
+stackprob04GLM <- stack(listProb04GLM)
+fav0.4GLM <- calc(stackprob04GLM, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04GLM <- as.data.frame(stackprob04GLM)%>%drop_na() 
+df_prob04GLM.S <- data.frame(values = unlist(df_prob04GLM))
+df_fav04GLM <- as.data.frame(fav0.4GLM)%>%drop_na()
+df_fav04GLM.S <- data.frame(values = unlist(df_fav04GLM))
+
+listProb05GLM <- lapply(Ssdm05GLM, listProbGLM)
+stackprob05GLM <- stack(listProb05GLM)
+fav0.5GLM <- calc(stackprob05GLM, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05GLM <- as.data.frame(stackprob05GLM)%>%drop_na() 
+df_prob05GLM.S <- data.frame(values = unlist(df_prob05GLM))
+df_fav05GLM <- as.data.frame(fav0.5GLM)%>%drop_na()
+df_fav05GLM.S <- data.frame(values = unlist(df_fav05GLM))
+
+
+listProb06GLM <- lapply(Ssdm06GLM, listProbGLM)
+stackprob06GLM <- stack(listProb06GLM)
+fav0.6GLM <- calc(stackprob06GLM, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06GLM <- as.data.frame(stackprob06GLM)%>%drop_na() 
+df_prob06GLM.S <- data.frame(values = unlist(df_prob06GLM))
+df_fav06GLM <- as.data.frame(fav0.6GLM)%>%drop_na()
+df_fav06GLM.S <- data.frame(values = unlist(df_fav06GLM))
+
+
+listProb08GLM <- lapply(Ssdm08GLM, listProbGLM)
+stackprob08GLM <- stack(listProb08GLM)
+fav0.8GLM <- calc(stackprob08GLM, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08GLM <- as.data.frame(stackprob08GLM)%>%drop_na() 
+df_prob08GLM.S <- data.frame(values = unlist(df_prob08GLM))
+df_fav08GLM <- as.data.frame(fav0.8GLM)%>%drop_na()
+df_fav08GLM.S <- data.frame(values = unlist(df_fav08GLM))
+
+###### #######
+
+df_fav08GLM.R$prevalence <- "F0.8"
+df_fav06GLM.R$prevalence <- "F0.6"
+df_fav05GLM.R$prevalence <- "F0.5"
+df_fav04GLM.R$prevalence <- "F0.4"
+df_fav02GLM.R$prevalence <- "F0.2"
+
+df_favGLM.R <- as.data.frame(rbind(df_fav02GLM.R, df_fav04GLM.R, df_fav05GLM.R, df_fav06GLM.R, df_fav08GLM.R))
+
+
+
+df_prob08GLM.R$prevalence <- "P0.8"
+df_prob06GLM.R$prevalence <- "P0.6"
+df_prob05GLM.R$prevalence <- "P0.5"
+df_prob04GLM.R$prevalence <- "P0.4"
+df_prob02GLM.R$prevalence <- "P0.2"
+
+df_probGLM.R <- as.data.frame(rbind(df_prob02GLM.R, df_prob04GLM.R, df_prob05GLM.R, df_prob06GLM.R, df_prob08GLM.R))
+
+
+
+
+
+
+Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favGLM.R)
+
+
+Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probGLM.R)
+
+
+
+
+df_fav08GLM.S$prevalence <- "F0.8"
+df_fav06GLM.S$prevalence <- "F0.6"
+df_fav05GLM.S$prevalence <- "F0.5"
+df_fav04GLM.S$prevalence <- "F0.4"
+df_fav02GLM.S$prevalence <- "F0.2"
+
+df_favGLM.S <- as.data.frame(rbind(df_fav02GLM.S, df_fav04GLM.S, df_fav05GLM.S, df_fav06GLM.S, df_fav08GLM.S))
+
+
+
+df_prob08GLM.S$prevalence <- "P0.8"
+df_prob06GLM.S$prevalence <- "P0.6"
+df_prob05GLM.S$prevalence <- "P0.5"
+df_prob04GLM.S$prevalence <- "P0.4"
+df_prob02GLM.S$prevalence <- "P0.2"
+
+df_probGLM.S <- as.data.frame(rbind(df_prob02GLM.S, df_prob04GLM.S, df_prob05GLM.S, df_prob06GLM.S, df_prob08GLM.S)) 
+
+Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favGLM.S)
+
+
+Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probGLM.S)
+
 
                   ####### GAM
                  
