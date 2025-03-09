@@ -1,5 +1,5 @@
-list.of.packages <- c("raster", "tidyverse", "sp", "sf", "virtualspecies", "ggplot2", "rgdal", "fuzzySim", "rasterVis", "viridis", "RStoolbox", "rnaturalearth", "scico","ranger","mgcv", "dismo", "patchwork","FSA","ROCR")
-lapply(list.of.packages, library, character.only = TRUE
+list.of.packages <- c("raster", "tidyverse", "sp", "sf", "virtualspecies", "ggplot2", "rgdal", "fuzzySim", "rasterVis", "viridis", "RStoolbox", "rnaturalearth", "scico","ranger","mgcv", "dismo", "patchwork","FSA","ROCR", "groupdata2")
+lapply(list.of.packages, library, character.only = TRUE)
 
 
 
