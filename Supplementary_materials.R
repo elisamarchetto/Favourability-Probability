@@ -2299,8 +2299,8 @@ Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favGAM.R)
 Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probGAM.R)
 
 
-Kruscal_prevR_RF <- data.frame(Fav=Kruskal_F.tot$p.value, Prob=Kruskal_P.tot$p.value)
-write.csv(Kruscal_prevR_RF,"Kruscal_prevRandom_GAM.csv")
+Kruscal_prevR_GAM <- data.frame(Fav=Kruskal_F.tot$p.value, Prob=Kruskal_P.tot$p.value)
+write.csv(Kruscal_prevR_GAM,"Kruscal_prevRandom_GAM.csv")
 
 
 df_fav08GAM.S$prevalence <- "F0.8"
