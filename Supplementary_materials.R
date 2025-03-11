@@ -2156,8 +2156,178 @@ Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favGLM.S)
 
 Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probGLM.S)
 
+                  
 
-                  ####### GAM
+######## RF ########
+
+listProbRF <- function(x) {
+  stackProb <- stack(x$Raster$Pred.predictions)
+  
+  return(stackProb)
+}
+
+
+
+# Random 
+
+listProb02RF <- lapply(Rsdm02RF, listProbRF)
+stackprob02RF <- stack(listProb02RF)
+fav0.2RF <- calc(stackprob02RF, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02RF <- as.data.frame(stackprob02RF)%>%drop_na() 
+df_prob02RF.R <- data.frame(values = unlist(df_prob02RF))
+df_fav02RF <- as.data.frame(fav0.2RF)%>%drop_na()
+df_fav02RF.R <- data.frame(values = unlist(df_fav02RF))
+
+
+listProb04RF <- lapply(Rsdm04RF, listProbRF)
+stackprob04RF <- stack(listProb04RF)
+fav0.4RF <- calc(stackprob04RF, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04RF <- as.data.frame(stackprob04RF)%>%drop_na() 
+df_prob04RF.R <- data.frame(values = unlist(df_prob04RF))
+df_fav04RF <- as.data.frame(fav0.4RF)%>%drop_na()
+df_fav04RF.R <- data.frame(values = unlist(df_fav04RF))
+
+listProb05RF <- lapply(Rsdm05RF, listProbRF)
+stackprob05RF <- stack(listProb05RF)
+fav0.5RF <- calc(stackprob05RF, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05RF <- as.data.frame(stackprob05RF)%>%drop_na() 
+df_prob05RF.R <- data.frame(values = unlist(df_prob05RF))
+df_fav05RF <- as.data.frame(fav0.5RF)%>%drop_na()
+df_fav05RF.R <- data.frame(values = unlist(df_fav05RF))
+
+
+listProb06RF <- lapply(Rsdm06RF, listProbRF)
+stackprob06RF <- stack(listProb06RF)
+fav0.6RF <- calc(stackprob06RF, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06RF <- as.data.frame(stackprob06RF)%>%drop_na() 
+df_prob06RF.R <- data.frame(values = unlist(df_prob06RF))
+df_fav06RF <- as.data.frame(fav0.6RF)%>%drop_na()
+df_fav06RF.R <- data.frame(values = unlist(df_fav06RF))
+
+
+listProb08RF <- lapply(Rsdm08RF, listProbRF)
+stackprob08RF <- stack(listProb08RF)
+fav0.8RF <- calc(stackprob08RF, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08RF <- as.data.frame(stackprob08RF)%>%drop_na() 
+df_prob08RF.R <- data.frame(values = unlist(df_prob08RF))
+df_fav08RF <- as.data.frame(fav0.8RF)%>%drop_na()
+df_fav08RF.R <- data.frame(values = unlist(df_fav08RF))
+
+# Stratified
+
+listProb02RF <- lapply(Ssdm02RF, listProbRF)
+stackprob02RF <- stack(listProb02RF)
+fav0.2RF <- calc(stackprob02RF, function(x) ((x)/(1-x))/(0.2 + (x)/(1-x)))
+
+df_prob02RF <- as.data.frame(stackprob02RF)%>%drop_na() 
+df_prob02RF.S <- data.frame(values = unlist(df_prob02RF))
+df_fav02RF <- as.data.frame(fav0.2RF)%>%drop_na()
+df_fav02RF.S <- data.frame(values = unlist(df_fav02RF))
+
+
+listProb04RF <- lapply(Ssdm04RF, listProbRF)
+stackprob04RF <- stack(listProb04RF)
+fav0.4RF <- calc(stackprob04RF, function(x) ((x)/(1-x))/(0.4 + (x)/(1-x)))
+
+df_prob04RF <- as.data.frame(stackprob04RF)%>%drop_na() 
+df_prob04RF.S <- data.frame(values = unlist(df_prob04RF))
+df_fav04RF <- as.data.frame(fav0.4RF)%>%drop_na()
+df_fav04RF.S <- data.frame(values = unlist(df_fav04RF))
+
+listProb05RF <- lapply(Ssdm05RF, listProbRF)
+stackprob05RF <- stack(listProb05RF)
+fav0.5RF <- calc(stackprob05RF, function(x) ((x)/(1-x))/(0.5 + (x)/(1-x)))
+
+df_prob05RF <- as.data.frame(stackprob05RF)%>%drop_na() 
+df_prob05RF.S <- data.frame(values = unlist(df_prob05RF))
+df_fav05RF <- as.data.frame(fav0.5RF)%>%drop_na()
+df_fav05RF.S <- data.frame(values = unlist(df_fav05RF))
+
+
+listProb06RF <- lapply(Ssdm06RF, listProbRF)
+stackprob06RF <- stack(listProb06RF)
+fav0.6RF <- calc(stackprob06RF, function(x) ((x)/(1-x))/(0.6 + (x)/(1-x)))
+
+df_prob06RF <- as.data.frame(stackprob06RF)%>%drop_na() 
+df_prob06RF.S <- data.frame(values = unlist(df_prob06RF))
+df_fav06RF <- as.data.frame(fav0.6RF)%>%drop_na()
+df_fav06RF.S <- data.frame(values = unlist(df_fav06RF))
+
+
+listProb08RF <- lapply(Ssdm08RF, listProbRF)
+stackprob08RF <- stack(listProb08RF)
+fav0.8RF <- calc(stackprob08RF, function(x) ((x)/(1-x))/(0.8 + (x)/(1-x)))
+
+df_prob08RF <- as.data.frame(stackprob08RF)%>%drop_na() 
+df_prob08RF.S <- data.frame(values = unlist(df_prob08RF))
+df_fav08RF <- as.data.frame(fav0.8RF)%>%drop_na()
+df_fav08RF.S <- data.frame(values = unlist(df_fav08RF))
+
+###### #######
+
+df_fav08RF.R$prevalence <- "F0.8"
+df_fav06RF.R$prevalence <- "F0.6"
+df_fav05RF.R$prevalence <- "F0.5"
+df_fav04RF.R$prevalence <- "F0.4"
+df_fav02RF.R$prevalence <- "F0.2"
+
+df_favRF.R <- as.data.frame(rbind(df_fav02RF.R, df_fav04RF.R, df_fav05RF.R, df_fav06RF.R, df_fav08RF.R))
+
+
+
+df_prob08RF.R$prevalence <- "P0.8"
+df_prob06RF.R$prevalence <- "P0.6"
+df_prob05RF.R$prevalence <- "P0.5"
+df_prob04RF.R$prevalence <- "P0.4"
+df_prob02RF.R$prevalence <- "P0.2"
+
+df_probRF.R <- as.data.frame(rbind(df_prob02RF.R, df_prob04RF.R, df_prob05RF.R, df_prob06RF.R, df_prob08RF.R))
+
+
+
+
+
+
+Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favRF.R)
+
+
+Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probRF.R)
+
+
+Kruscal_prevR_RF <- data.frame(Fav=Kruskal_F.tot$p.value, Prob=Kruskal_P.tot$p.value)
+write.csv(Kruscal_prevR_RF,"Kruscal_prevRandom_RF.csv")
+
+
+df_fav08RF.S$prevalence <- "F0.8"
+df_fav06RF.S$prevalence <- "F0.6"
+df_fav05RF.S$prevalence <- "F0.5"
+df_fav04RF.S$prevalence <- "F0.4"
+df_fav02RF.S$prevalence <- "F0.2"
+
+df_favRF.S <- as.data.frame(rbind(df_fav02RF.S, df_fav04RF.S, df_fav05RF.S, df_fav06RF.S, df_fav08RF.S))
+
+
+
+df_prob08RF.S$prevalence <- "P0.8"
+df_prob06RF.S$prevalence <- "P0.6"
+df_prob05RF.S$prevalence <- "P0.5"
+df_prob04RF.S$prevalence <- "P0.4"
+df_prob02RF.S$prevalence <- "P0.2"
+
+df_probRF.S <- as.data.frame(rbind(df_prob02RF.S, df_prob04RF.S, df_prob05RF.S, df_prob06RF.S, df_prob08RF.S)) 
+
+Kruskal_F.tot <- kruskal.test(values ~ prevalence, data= df_favRF.S)
+Kruskal_P.tot <- kruskal.test(values ~ prevalence, data= df_probRF.S)
+                 
+Kruscal_prevS_RF <- data.frame(Fav=Kruskal_F.tot$p.value, Prob=Kruskal_P.tot$p.value)
+write.csv(Kruscal_prevS_RF,"Kruscal_prevStratified_RF.csv")
+                 
+                  ####### GAM #########
                  
                 
 
